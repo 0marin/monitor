@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Деталі Перевірки</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Деталі Перевірки: <span id="monitorNameTitle"></span></h1>
+    </header>
+    <main class="container">
+        <div id="monitorDetailsContainer">
+            <p><strong>Назва:</strong> <span id="monitorName">Завантаження...</span></p>
+            <p><strong>URL:</strong> <a id="monitorUrl" href="#" target="_blank">Завантаження...</a></p>
+            <p><strong>CSS-селектор:</strong> <span id="monitorSelector">Завантаження...</span></p>
+            <p><strong>Поріг зміни (%):</strong> <span id="monitorThreshold">Завантаження...</span></p>
+            <p><strong>Інтервал:</strong> <span id="monitorInterval">Завантаження...</span> хв.</p>
+            <p><strong>Статус:</strong> <span id="monitorStatus">Завантаження...</span></p>
+            <p><strong>Остання перевірка:</strong> <span id="lastCheckTime">Завантаження...</span></p>
+            <p><strong>Наступна перевірка:</strong> <span id="nextCheckTime">Завантаження...</span></p>
+            <p><strong>Результат останньої перевірки:</strong> <span id="lastCheckResult">Завантаження...</span></p>
+        </div>
+
+        <div class="actions">
+            <button id="runCheckNow" class="btn">Позачергова перевірка</button>
+            <button id="toggleActive" class="btn">Активувати/Деактивувати</button>
+            <button id="editCheck" class="btn btn-edit">Редагувати</button>
+            <button id="deleteCheck" class="btn btn-delete">Видалити</button>
+            <a href="{{ url_for('index_page') }}" class="btn btn-back">Назад до списку</a>
+        </div>
+
+        <div class="history">
+            <h3>Історія останніх 20 перевірок:</h3>
+            <ul id="checkHistoryList">
+                <!-- Історія буде завантажена сюди -->
+                <li>Завантаження історії...</li>
+            </ul>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 Web Monitor</p>
+    </footer>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

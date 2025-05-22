@@ -1,0 +1,180 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Детали проверки</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    header {
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #333;
+    }
+
+    .details-container {
+      max-width: 600px;
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .details-item {
+      margin-bottom: 15px;
+    }
+
+    .details-item label {
+      font-weight: bold;
+      color: #333;
+      margin-right: 10px;
+    }
+
+    .details-item span {
+      color: #555;
+    }
+
+    .history {
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+    }
+
+    .history-item {
+      margin-bottom: 5px;
+      color: #666;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-start;
+      margin-bottom: 15px;
+    }
+
+    .btn-action {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-edit {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .btn-delete {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    .btn-back {
+      background-color: #6c757d;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Детали проверки</h1>
+  </header>
+  <div class="details-container">
+    <div class="details-item">
+      <label>Название:</label>
+      <span>Mandarake Limited Vintage</span>
+    </div>
+    <div class="details-item">
+      <label>URL:</label>
+      <span>https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en</span>
+    </div>
+    <div class="details-item">
+      <label>CSS-селектор:</label>
+      <span>div.count</span>
+    </div>
+    <div class="details-item">
+      <label>Интервал:</label>
+      <span>15 минут</span>
+    </div>
+    <div class="details-item">
+      <label>Статус:</label>
+      <span>Новые изменения</span>
+    </div>
+    <div class="details-item">
+      <label>Последняя проверка:</label>
+      <span>16 мая 2025 12:00</span>
+    </div>
+    <div class="details-item">
+      <label>Следующая проверка:</label>
+      <span>Через 15 минут</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-edit">Редактировать</button>
+      <button class="btn btn-delete" onclick="if(confirm('Удалить проверку?')) window.location.href='index.html'">Удалить</button>
+      <button class="btn btn-action">Перепроверить</button>
+      <button class="btn btn-action">Отключить</button>
+      <a href="index.html" class="btn btn-back">Назад</a>
+    </div>
+    <div class="history">
+      <h3>История изменений</h3>
+      <div class="history-item">12:00 - Количество товаров изменилось с 4 на 5</div>
+      <div class="history-item">11:45 - Нет изменений</div>
+      <div class="history-item">11:30 - Ошибка: Сайт недоступен</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Python bytecode and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Виртуальные окружения
+env/
+venv/
+.venv/
+
+# Файлы зависимостей, которые генерируются pip
+pip-wheel-metadata/
+pip-log.txt
+
+# Логи приложения
+web_monitor/logs/
+
+# Файлы конфигурации IDE/редактора
+.vscode/
+# .idea/ # Если используете PyCharm/IntelliJ
+
+# Системные файлы операционных систем
+.DS_Store
+Thumbs.db
+
+# Файл с данными проверок (решите, хотите ли его версионировать)
+# Если ДА - закомментируйте или удалите следующую строку
+# Если НЕТ - оставьте, чтобы он не попадал в репозиторий
+# web_monitor/data/checks.json 
