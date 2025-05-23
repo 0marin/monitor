@@ -1,11 +1,37 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
-import os
-import data_manager # Импортируем наш модуль
-import scheduler_tasks # Импортируем модуль планировщика
-import logging
+from flask import Flask, request, jsonify, render_template, redirect, url_for # Ваши импорты Flask
+import os # Ваш импорт os
+import uuid # Был в предыдущей версии, вероятно, нужен
+import logging # Ваш импорт logging
+from datetime import datetime, timezone # Было в предыдущей версии, вероятно, нужно для created_at и т.д.
+
+# --- ИЗМЕНИТЬ ЭТИ ИМПОРТЫ ---
+from . import data_manager    # Импортируем наш модуль
+from . import scheduler_tasks # Импортируем модуль планировщика
+from . import monitor_engine  # Если он вам нужен напрямую в app.py
+from .telegram_sender import send_telegram_message # Этот импорт, вероятно, уже правильный
+
+# ... остальной код app.py (настройка логирования, app = Flask(__name__), и т.д.)
+
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def format_datetime_filter(value, format='%d %B %Y %H:%M:%S %Z'):
+    """Форматирует строку ISO datetime в читаемый вид."""
+    if value is None:
+        return ""
+    try:
+        # Предполагаем, что value - это строка ISO, заканчивающаяся на 'Z' или с offset
+        dt_object = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        # Если хотим отображать в локальном времени сервера (не рекомендуется для консистентности)
+        # dt_object = dt_object.astimezone(None) 
+        # Для простоты оставим в UTC или как есть в строке
+        return dt_object.strftime(format)
+    except (ValueError, TypeError) as e:
+        logging.warning(f"Could not format datetime string '{value}': {e}")
+        return value # Возвращаем исходное значение, если не удалось отформатировать
+
+app.jinja_env.filters['format_datetime'] = format_datetime_filter
 
 # Конфигурация логирования (будет добавлена позже)
 
@@ -166,16 +192,22 @@ def api_delete_check(check_id):
 
 if __name__ == '__main__':
     # Убедимся, что каталог data и файл checks.json существуют при запуске
-    # data_manager.py уже это делает при импорте
+    # data_manager.py уже это делает при импорте (для HISTORY_DIR)
+    # CHECKS_FILE директория создается в data_manager.save_checks()
     
-    # Запускаем планировщик
-    # Используем try-except, чтобы убедиться, что планировщик корректно завершается
+    # Планировщик уже инициализирован и запущен на глобальном уровне модуля
+    # функцией scheduler_tasks.init_scheduler(app_checks)
+    
+    # Запускаем Flask приложение
     try:
-        scheduler_tasks.start_scheduler()
+        # scheduler_tasks.start_scheduler() # <<< УДАЛИТЕ ИЛИ ЗАКОММЕНТИРУЙТЕ ЭТУ СТРОКУ
         app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
         # use_reloader=False важен, чтобы планировщик не запускался дважды в debug режиме
     except (KeyboardInterrupt, SystemExit):
-        scheduler_tasks.shutdown_scheduler()
+        logging.info("Application shutting down...")
+        # scheduler_tasks.shutdown_scheduler() # atexit уже должен это сделать
     finally:
-        if scheduler_tasks.scheduler.running:
+        # Дополнительная проверка, если atexit не сработал или для явности
+        if scheduler_tasks.scheduler and scheduler_tasks.scheduler.running:
+             logging.info("Ensuring scheduler is shut down in finally block...")
              scheduler_tasks.shutdown_scheduler()

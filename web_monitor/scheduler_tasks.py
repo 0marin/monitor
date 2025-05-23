@@ -1,200 +1,233 @@
 import logging
+from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta
-import os # Добавлен импорт os для main блока
+from . import data_manager
+from . import monitor_engine
+# from . import telegram_sender # Пока закомментировано, если не используется
 
-# Предполагается, что эти модули будут доступны
-import data_manager
-import monitor_engine
-
-scheduler = BackgroundScheduler(daemon=True)
+scheduler = BackgroundScheduler(timezone="UTC") # Используем UTC для планировщика
 
 def scheduled_check_task(check_id):
     """
-    Задача, выполняемая планировщиком для конкретной проверки.
+    Задача, выполняемая по расписанию для одной проверки.
     """
-    logging.info(f"Scheduler: Running task for check_id: {check_id}")
-    check_config = data_manager.get_check_by_id(check_id)
+    all_checks = data_manager.load_checks()
+    check_config = next((c for c in all_checks if c['id'] == check_id), None)
 
     if not check_config:
-        logging.warning(f"Scheduler: Check with ID {check_id} not found. Removing job if exists.")
-        if scheduler.get_job(check_id):
-            scheduler.remove_job(check_id)
+        logging.error(f"Scheduler: Check with ID {check_id} not found for scheduled task.")
         return
 
-    if check_config.get("status") != "active":
-        logging.info(f"Scheduler: Check ID {check_id} ('{check_config.get('name', '')}') is not active. Skipping.")
+    if check_config.get("status") == "paused":
+        logging.info(f"Scheduler: Check '{check_config.get('name', check_id)}' is paused. Skipping.")
         return
 
-    # Выполняем проверку, передавая весь check_config
-    result = monitor_engine.perform_check(check_config)
-
-    # Обновляем данные проверки в checks.json
-    check_config["last_checked_at"] = result["checked_at"]
-    check_config["last_result"] = result["status"]
-    check_config["last_error_message"] = result.get("error_message") # Используем .get для безопасности
-
-    # Важно: обновляем хеш контента, если он был получен
-    if result.get("new_content_hash") is not None: # Проверяем на None, т.к. хеш может быть пустой строкой (хотя наш get_content_hash не должен так делать)
-        check_config["last_content_hash"] = result["new_content_hash"]
+    logging.info(f"Scheduler: Running task for check_id: {check_id} ('{check_config.get('name', '')}')")
     
-    # Обновляем время следующей проверки из данных задачи APScheduler
-    job = scheduler.get_job(check_id)
-    if job and job.next_run_time:
-         check_config["next_check_at"] = job.next_run_time.isoformat()
-    else:
-        # Запасной вариант: если по какой-то причине job.next_run_time недоступен сразу
-        interval_minutes = check_config.get("interval", 60)
-        check_config["next_check_at"] = (datetime.utcnow() + timedelta(minutes=interval_minutes)).isoformat() + 'Z'
-        logging.warning(f"Scheduler: Could not get next_run_time from job {check_id}. Calculated based on interval.")
+    # Выполняем проверку
+    status, new_hash, extracted_text, error_msg = monitor_engine.perform_check(
+        check_id=check_config['id'],
+        name=check_config.get('name', 'N/A'),
+        url=check_config['url'],
+        selector=check_config['selector'],
+        last_hash=check_config.get('last_content_hash')
+    )
 
-    # Сохраняем обновленную конфигурацию проверки
-    # Вместо перезаписи всего файла, лучше иметь функцию в data_manager для обновления одной проверки
-    # Пока что оставим как есть, но это кандидат на рефакторинг в data_manager.py
-    all_checks = data_manager.load_checks()
-    updated = False
-    for i, chk in enumerate(all_checks):
-        if chk.get("id") == check_id:
-            all_checks[i] = check_config
-            updated = True
-            break
-    if updated:
-        data_manager.save_checks(all_checks)
-    else:
-        logging.error(f"Scheduler: Failed to find check {check_id} in loaded checks to save updates.")
+    current_time_utc = datetime.now(timezone.utc)
+    current_time_iso = current_time_utc.isoformat()
+
+    # Формируем запись для истории
+    history_entry = {
+        "timestamp": current_time_iso,
+        "status": status,
+        "extracted_value": extracted_text,
+        "content_hash": new_hash,
+        "error_message": error_msg
+    }
+
+    # Сохраняем запись в историю
+    data_manager.save_check_history_entry(check_id, history_entry)
+    logging.info(f"Scheduler: History entry saved for check_id: {check_id}")
+
+    # Обновляем основную конфигурацию проверки
+    check_config['last_checked_at'] = current_time_iso
+    check_config['last_result'] = status
+    if status != "error": # Обновляем хеш только если не было ошибки при проверке
+        check_config['last_content_hash'] = new_hash
+    check_config['last_error_message'] = error_msg
     
-    logging.info(f"Scheduler: Task for check_id: {check_id} ('{check_config.get('name', '')}') completed. Status: {result['status']}. Next run: {check_config['next_check_at']}")
+    # Рассчитываем следующее время запуска для информации (приблизительно)
+    # Это поле больше не используется для управления планировщиком напрямую,
+    # но может быть полезно для отображения.
+    try:
+        job = scheduler.get_job(check_id)
+        if job and job.next_run_time:
+            check_config['next_check_at'] = job.next_run_time.isoformat()
+        else:
+            # Если джоба нет или время следующего запуска неизвестно, можно оставить старое или None
+            check_config['next_check_at'] = check_config.get('next_check_at') 
+    except Exception as e:
+        logging.warning(f"Scheduler: Could not get next_run_time for job {check_id}: {e}")
+        check_config['next_check_at'] = check_config.get('next_check_at')
+
+
+    data_manager.save_checks(all_checks)
+    logging.info(f"Scheduler: Task for check_id: {check_id} ('{check_config.get('name', '')}') completed. Status: {status}. Next approximate run based on interval: {check_config.get('next_check_at', 'N/A')}")
+
+    # Отправка уведомления, если статус 'changed' или 'error' (будет добавлено позже)
+    # if status == "changed" or status == "error":
+    #     message = f"Check '{check_config.get('name', check_id)}' status: {status}."
+    #     if extracted_text and status == "changed":
+    #         message += f"\nNew value: {extracted_text}"
+    #     if error_msg:
+    #         message += f"\nError: {error_msg}"
+    #     # telegram_sender.send_telegram_message(message) # Раскомментировать, когда telegram_sender будет готов
+
+def init_scheduler(app_checks):
+    """
+    Инициализирует и запускает планировщик с задачами из app_checks.
+    Удаляет старые задачи перед добавлением новых.
+    """
+    if scheduler.running:
+        logging.info("Scheduler is already running. Shutting down to re-initialize.")
+        scheduler.shutdown(wait=False) # wait=False чтобы не блокировать, если задачи долгие
+        # Даем немного времени на завершение, если необходимо
+        # import time
+        # time.sleep(1) 
+        # Создаем новый экземпляр, чтобы избежать проблем с повторной инициализацией
+        # globals()['scheduler'] = BackgroundScheduler(timezone="UTC")
+
+    # Очищаем все существующие задачи, если shutdown не очистил (на всякий случай)
+    # или если мы не создаем новый экземпляр
+    # for job in scheduler.get_jobs():
+    #     job.remove()
+    # logging.info("Scheduler: All existing jobs removed.")
+        
+    # Пересоздаем планировщик для чистоты состояния
+    # (более надежно, чем пытаться очистить существующий и перезапустить)
+    globals()['scheduler'] = BackgroundScheduler(timezone="UTC")
+    logging.info("Scheduler: Initializing...")
     
-    # TODO: Отправка уведомления через telegram_sender, если были изменения или ошибки
-
-
-def reschedule_check(check_config):
-    """Добавляет или перепланирует задачу для проверки."""
-    check_id = check_config.get("id")
-    interval_minutes = check_config.get("interval", 60) 
-    
-    if not check_id:
-        logging.error("Scheduler: Cannot schedule check without ID.")
-        return
-
-    job_exists = scheduler.get_job(check_id) is not None
-
-    if job_exists:
-        # Попытка изменить существующую задачу. 
-        # APScheduler может не позволить изменить 'args' или 'func' существующей задачи напрямую через reschedule.
-        # Проще удалить и добавить заново, если параметры, кроме интервала, могли измениться.
-        # Но если меняется только интервал, reschedule_job достаточно.
-        # Для простоты пока считаем, что reschedule_check вызывается, когда интервал мог измениться.
-        try:
-            scheduler.reschedule_job(check_id, trigger='interval', minutes=interval_minutes)
-            logging.info(f"Scheduler: Rescheduled job for check_id: {check_id} ('{check_config.get('name', '')}') to run every {interval_minutes} minutes.")
-        except Exception as e:
-            logging.error(f"Scheduler: Error rescheduling job {check_id}: {e}. Removing and re-adding.")
+    for check_config in app_checks:
+        if check_config.get("status") != "paused": # Не добавляем в планировщик неактивные или удаленные
             try:
-                scheduler.remove_job(check_id)
-                job_exists = False # Устанавливаем флаг, чтобы задача была добавлена ниже
-            except Exception as e_rem:
-                logging.error(f"Scheduler: Error removing job {check_id} for re-adding: {e_rem}")
-                return # Не можем продолжить, если не удалось удалить
-    
-    if not job_exists: # Если задачи не было или она была удалена для пересоздания
-        scheduler.add_job(
-            scheduled_check_task,
-            trigger='interval',
-            minutes=interval_minutes,
-            id=check_id,
-            args=[check_id],
-            next_run_time=datetime.now() + timedelta(seconds=10) # Запускаем первую проверку через 10 секунд
-        )
-        logging.info(f"Scheduler: Added new job for check_id: {check_id} ('{check_config.get('name', '')}') to run every {interval_minutes} minutes.")
-    
-    # Обновляем next_check_at в данных после добавления/перепланирования
-    job = scheduler.get_job(check_id)
-    if job and job.next_run_time:
-        current_next_check_at = job.next_run_time.isoformat()
-        if check_config.get("next_check_at") != current_next_check_at:
-            check_config["next_check_at"] = current_next_check_at
-            # Обновляем только если изменилось, чтобы избежать лишних записей в файл
-            all_checks = data_manager.load_checks()
-            updated_in_file = False
-            for i, chk in enumerate(all_checks):
-                if chk.get("id") == check_id:
-                    all_checks[i]["next_check_at"] = check_config["next_check_at"]
-                    updated_in_file = True
-                    break
-            if updated_in_file:
-                data_manager.save_checks(all_checks)
+                interval_minutes = int(check_config.get('interval', 5)) # По умолчанию 5 минут
+                if interval_minutes <= 0:
+                    logging.warning(f"Scheduler: Invalid interval {interval_minutes} for check '{check_config.get('name', check_config['id'])}'. Setting to 5 minutes.")
+                    interval_minutes = 5
+                
+                scheduler.add_job(
+                    func=scheduled_check_task,
+                    trigger='interval',
+                    minutes=interval_minutes,
+                    id=check_config['id'],
+                    name=f"Check: {check_config.get('name', check_config['id'])}",
+                    replace_existing=True # Заменяет задачу, если она уже существует с таким id
+                )
+                logging.info(f"Scheduler: Added job for check_id: {check_config['id']} ('{check_config.get('name', '')}'), Interval: {interval_minutes} minutes.")
+            except Exception as e:
+                logging.error(f"Scheduler: Error adding job for check_id {check_config['id']}: {e}")
+        else:
+            logging.info(f"Scheduler: Check '{check_config.get('name', check_config['id'])}' is paused. Not scheduling.")
 
 
-def remove_scheduled_check(check_id):
-    """Удаляет запланированную задачу."""
-    if scheduler.get_job(check_id):
+    if not scheduler.running:
         try:
+            scheduler.start(paused=False) # paused=False чтобы задачи начали выполняться сразу
+            logging.info("Scheduler: Started successfully.")
+        except Exception as e:
+            logging.error(f"Scheduler: Failed to start. {e}")
+    else:
+        logging.info("Scheduler: Already running (re-initialized or was running).")
+
+def update_job(check_id, interval_minutes):
+    """Обновляет интервал существующей задачи или добавляет новую, если ее нет."""
+    try:
+        if interval_minutes <= 0:
+            logging.warning(f"Scheduler: Invalid interval {interval_minutes} for check_id {check_id}. Not updating.")
+            return False
+        
+        job = scheduler.get_job(check_id)
+        if job:
+            scheduler.reschedule_job(check_id, trigger='interval', minutes=interval_minutes)
+            logging.info(f"Scheduler: Rescheduled job for check_id: {check_id} to {interval_minutes} minutes.")
+        else:
+            # Если задачи нет, нужно загрузить конфигурацию и добавить ее
+            # Это может произойти, если проверка была добавлена, когда планировщик не работал,
+            # или была удалена из планировщика по какой-то причине.
+            all_checks = data_manager.load_checks()
+            check_config = next((c for c in all_checks if c['id'] == check_id), None)
+            if check_config and check_config.get("status") != "paused":
+                 scheduler.add_job(
+                    func=scheduled_check_task,
+                    trigger='interval',
+                    minutes=interval_minutes,
+                    id=check_config['id'],
+                    name=f"Check: {check_config.get('name', check_config['id'])}",
+                    replace_existing=True
+                )
+                 logging.info(f"Scheduler: Added new job for check_id: {check_id} with interval {interval_minutes} minutes (was not found).")
+            elif check_config and check_config.get("status") == "paused":
+                logging.info(f"Scheduler: Check {check_id} is paused. Not adding/rescheduling job.")
+            else:
+                logging.warning(f"Scheduler: Check {check_id} not found in config. Cannot add/reschedule job.")
+                return False
+        return True
+    except Exception as e:
+        logging.error(f"Scheduler: Error updating job for check_id {check_id}: {e}")
+        return False
+
+def remove_job(check_id):
+    """Удаляет задачу из планировщика."""
+    try:
+        job = scheduler.get_job(check_id)
+        if job:
             scheduler.remove_job(check_id)
             logging.info(f"Scheduler: Removed job for check_id: {check_id}.")
-        except Exception as e:
-            logging.error(f"Scheduler: Error removing job {check_id}: {e}")
+        else:
+            logging.info(f"Scheduler: Job for check_id: {check_id} not found, no need to remove.")
+        return True
+    except Exception as e:
+        logging.error(f"Scheduler: Error removing job for check_id {check_id}: {e}")
+        return False
 
-
-def load_and_schedule_all_active_checks():
-    """Загружает все активные проверки и планирует их."""
-    logging.info("Scheduler: Loading and scheduling all active checks...")
-    all_checks = data_manager.load_checks()
-    active_checks_count = 0
-    for check_config in all_checks:
-        if check_config.get("status") == "active":
-            reschedule_check(check_config) # reschedule_check теперь обновляет next_check_at
-            active_checks_count += 1
-    logging.info(f"Scheduler: Processed {active_checks_count} active checks for scheduling.")
-
-
-def start_scheduler():
-    """Инициализирует и запускает планировщик."""
-    if not scheduler.running:
-        load_and_schedule_all_active_checks()
-        scheduler.start()
-        logging.info("Scheduler started.")
-    else:
-        logging.info("Scheduler is already running.")
-
-def shutdown_scheduler():
-    """Останавливает планировщик."""
-    if scheduler.running:
-        scheduler.shutdown()
-        logging.info("Scheduler shut down.")
-
-if __name__ == '__main__':
-    # Пример для ручного тестирования планировщика
-    # Убедимся, что каталог data существует
-    if not os.path.exists(data_manager.DATA_DIR):
-        os.makedirs(data_manager.DATA_DIR)
-        
-    if not os.path.exists(data_manager.CHECKS_FILE):
-         data_manager.save_checks([])
-    
-    checks = data_manager.load_checks()
-    test_check_id_manual = "test-scheduler-manual-001"
-    test_check_found = any(c.get("id") == test_check_id_manual for c in checks)
-    
-    if not test_check_found:
-        # Используем data_manager.add_check, который генерирует ID и другие поля
-        data_manager.add_check({
-            "name": "Test Scheduler Manual Check",
-            "url": "http://example.com/scheduler-test-manual", # Используем http
-            "interval": 1, 
-            "status": "active"
-        })
-        # После add_check, ID будет сгенерирован, и он будет отличаться от test_check_id_manual
-        # Для теста нам нужно знать ID, поэтому лучше найти его или использовать фиксированный,
-        # но add_check не позволяет задать ID.
-        # Для простоты теста, мы можем просто запустить load_and_schedule_all_active_checks.
-
-    logging.info("Starting scheduler for manual test...")
-    start_scheduler()
-    
+def pause_job(check_id):
+    """Приостанавливает задачу в планировщике (если она существует)."""
     try:
-        while True:
-            pass
-    except (KeyboardInterrupt, SystemExit):
-        logging.info("Shutting down scheduler from manual test...")
-        shutdown_scheduler()
+        job = scheduler.get_job(check_id)
+        if job:
+            scheduler.pause_job(check_id)
+            logging.info(f"Scheduler: Paused job for check_id: {check_id}.")
+        else:
+            logging.info(f"Scheduler: Job for check_id: {check_id} not found, cannot pause.")
+        return True
+    except Exception as e:
+        logging.error(f"Scheduler: Error pausing job for check_id {check_id}: {e}")
+        return False
+
+def resume_job(check_id):
+    """Возобновляет задачу в планировщике (если она существует)."""
+    try:
+        job = scheduler.get_job(check_id)
+        if job:
+            scheduler.resume_job(check_id)
+            logging.info(f"Scheduler: Resumed job for check_id: {check_id}.")
+        else:
+            # Если задачи нет, но проверка активна, попробуем ее добавить
+            all_checks = data_manager.load_checks()
+            check_config = next((c for c in all_checks if c['id'] == check_id), None)
+            if check_config and check_config.get("status") != "paused": # Должен быть 'active'
+                interval_minutes = int(check_config.get('interval', 5))
+                update_job(check_id, interval_minutes) # update_job добавит, если нет
+                logging.info(f"Scheduler: Job for check_id: {check_id} was not found, attempted to add and resume.")
+            else:
+                logging.info(f"Scheduler: Job for check_id: {check_id} not found or check is not active, cannot resume.")
+        return True
+    except Exception as e:
+        logging.error(f"Scheduler: Error resuming job for check_id {check_id}: {e}")
+        return False
+
+# Также убедимся, что планировщик корректно останавливается при завершении приложения
+import atexit
+atexit.register(lambda: scheduler.shutdown(wait=False) if scheduler.running else None)
+
