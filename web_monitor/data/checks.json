@@ -1,32 +1,32 @@
 [
     {
-        "id": "ee6ebf74-2fce-459c-a98a-69702cb16f72",
+        "id": "c859407e-d137-4228-9c38-8177c0627abd",
         "name": "7",
         "url": "https://timmybooks.prom.ua/ua/p2605397463-kniga-navykov-vysokoeffektivnyh.html",
         "selector": "span[data-qaid=\"product_price\"]",
         "change_threshold": null,
-        "interval": 3,
+        "interval": 2,
         "status": "active",
-        "created_at": "2025-05-22T19:45:52.704925Z",
-        "last_checked_at": "2025-05-24T15:29:02.527853+00:00",
-        "next_check_at": "2025-05-24T15:32:01.341330+00:00",
+        "created_at": "2025-05-24T16:21:13.443716+00:00",
+        "last_checked_at": "2025-05-24T19:05:10.010830+00:00",
         "last_result": "no_change",
-        "last_error_message": null,
-        "last_content_hash": "d123152aeb245cfcdd1d4fd3670e2a39"
+        "last_content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "next_check_at": null,
+        "last_error_message": null
     },
     {
-        "id": "a6223715-8dbd-408b-82d3-a4f5aa4c8e41",
-        "name": "7",
-        "url": "https://timmybooks.prom.ua/ua/p2605397463-kniga-navykov-vysokoeffektivnyh.html",
-        "selector": "span[data-qaid=\"product_price\"]",
+        "id": "1a1e0ea5-1c05-4c03-86b0-cdc53b99c580",
+        "name": "LV",
+        "url": "https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en",
+        "selector": "div.count",
         "change_threshold": null,
-        "interval": 1,
+        "interval": 10,
         "status": "active",
-        "created_at": "2025-05-24T08:55:51.111675+00:00",
-        "last_checked_at": "2025-05-24T15:35:41.653740+00:00",
+        "created_at": "2025-05-24T16:45:34.664640+00:00",
+        "last_checked_at": "2025-05-24T19:02:22.521247+00:00",
         "last_result": "no_change",
-        "last_content_hash": "d123152aeb245cfcdd1d4fd3670e2a39",
-        "next_check_at": "2025-05-24T15:36:40.692300+00:00",
+        "last_content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "next_check_at": "2025-05-24T22:11:16.527319+03:00",
         "last_error_message": null
     }
 ]

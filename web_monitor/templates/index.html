@@ -7,29 +7,35 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Моніторинг веб-сайтів</h1>
-        <nav>
-            <a href="{{ url_for('add_check_page') }}" class="btn btn-add">+ Додати перевірку</a>
-            <button id="refreshAll" class="btn">Оновити всі перевірки</button>
-            <button id="togglePauseApp" class="btn">Пауза застосунку</button>
-        </nav>
-    </header>
-    <main class="container">
-        <h2>Список перевірок</h2>
-        <ul id="monitorList" class="monitor-list">
-            <!-- Елементи списку будуть додані динамічно JavaScript -->
-            <li class="monitor-item-placeholder">Завантаження списку перевірок...</li>
-        </ul>
+    <div class="container">
+        <header>
+            <h1>🔍 Web Monitor</h1>
+            <div class="actions">
+                <a href="{{ url_for('add_check_page') }}" class="btn btn-add">✨ Додати перевірку</a>
+                <button class="btn btn-status" onclick="loadSystemStatus()">📊 Статус системи</button>
+            </div>
+        </header>
 
-        <h2>Стан системи</h2>
-        <div id="systemStatus">
-            Завантаження стану системи...
+        <div class="system-status" id="systemStatus" style="display: none;">
+            <h3>🖥️ Стан системи</h3>
+            <div id="statusContent"></div>
+            <!-- ДОДАНО: Кнопки діагностики -->
+            <div class="system-actions" style="margin-top: 15px;">
+                <button class="btn btn-action" onclick="loadSchedulerDiagnostics()">🔍 Діагностика планувальника</button>
+                <button class="btn btn-action" onclick="forceSchedulerCheck()">⚡ Примусова перевірка</button>
+            </div>
         </div>
-    </main>
-    <footer>
-        <p>&copy; 2025 Web Monitor</p>
-    </footer>
+
+        <main>
+            <section>
+                <h2>📋 Активні перевірки</h2>
+                <div id="checksContainer">
+                    <div class="loading"></div> Завантаження перевірок...
+                </div>
+            </section>
+        </main>
+    </div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

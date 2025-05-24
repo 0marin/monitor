@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Помилка - Web Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>❌ Помилка</h1>
+            <div class="actions">
+                <a href="{{ url_for('index_page') }}" class="btn btn-back">🏠 На головну</a>
+            </div>
+        </header>
+
+        <div class="form-container">
+            <div class="message error">
+                <p>{{ error_message or "Сталася невідома помилка" }}</p>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="{{ url_for('index_page') }}" class="btn btn-back">🏠 Повернутися на головну</a>
+                <a href="{{ url_for('add_check_page') }}" class="btn btn-add" style="margin-left: 10px;">✨ Додати перевірку</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -3,100 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Деталі перевірки - {{ check.name or 'Безіменна перевірка' }}</title>
+    <title>{{ check.name or 'Деталі перевірки' }} - Web Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Деталі перевірки</h1>
-    </header>
-    
-    <div class="details-container">
-        <div class="details-item">
-            <label>Назва:</label>
-            <span id="monitorName">{{ check.name or 'Безіменна перевірка' }}</span>
-        </div>
-        
-        <div class="details-item">
-            <label>URL:</label>
-            <span>{{ check.url }}</span>
-        </div>
-        
-        <div class="details-item">
-            <label>CSS-селектор:</label>
-            <span>{{ check.selector or 'Не вказано' }}</span>
-        </div>
-        
-        <div class="details-item">
-            <label>Інтервал:</label>
-            <span>{{ check.interval }} хвилин</span>
-        </div>
-        
-        <div class="details-item">
-            <label>Статус:</label>
-            <span class="monitor-status 
-                {% if check.status == 'active' %}status-active
-                {% else %}status-inactive{% endif %}">
-                {% if check.status == 'active' %}Активна{% else %}Неактивна{% endif %}
-            </span>
-        </div>
-        
-        <div class="details-item">
-            <label>Результат останньої перевірки:</label>
-            <span class="monitor-status 
-                {% if check.last_result == 'changed' %}status-changed
-                {% elif check.last_result == 'no_change' %}status-no-change  
-                {% elif check.last_result == 'error' %}status-error
-                {% else %}status-unknown{% endif %}">
-                {% if check.last_result == 'changed' %}Зміни виявлено
-                {% elif check.last_result == 'no_change' %}Без змін
-                {% elif check.last_result == 'error' %}Помилка
-                {% else %}Ще не перевірялось{% endif %}
-            </span>
-        </div>
-        
-        <div class="details-item">
-            <label>Остання перевірка:</label>
-            <span>
-                {% if check.last_checked_at %}
-                    {{ check.last_checked_at | format_datetime('%d.%m.%Y, %H:%M:%S UTC') }}
-                {% else %}
-                    Ще не перевірялось
-                {% endif %}
-            </span>
-        </div>
-        
-        <div class="details-item">
-            <label>Наступна перевірка:</label>
-            <span>
-                {% if check.next_check_at %}
-                    {{ check.next_check_at | format_datetime('%d.%m.%Y, %H:%M:%S') }}
-                {% else %}
-                    Не заплановано
-                {% endif %}
-            </span>
-        </div>
+    <div class="container">
+        <header>
+            <h1>📋 {{ check.name or 'Деталі перевірки' }}</h1>
+            <div class="actions">
+                <a href="{{ url_for('index_page') }}" class="btn btn-back">⬅️ Назад</a>
+            </div>
+        </header>
 
-        <div class="actions">
-            <button class="btn btn-edit" onclick="editCheck()">Редагувати</button>
-            <button class="btn btn-delete" onclick="deleteCheck()">Видалити</button>
-            <button class="btn btn-action" onclick="runManualCheck()">Позачергова перевірка</button>
-            <button class="btn btn-action" onclick="toggleCheckStatus()">
-                <span id="toggleStatusText">
-                    {% if check.status == 'active' %}Деактивувати{% else %}Активувати{% endif %}
+        <div class="details-container">
+            <div class="details-item">
+                <label>🏷️ Назва:</label>
+                <span>{{ check.name or 'Безіменна перевірка' }}</span>
+            </div>
+
+            <div class="details-item">
+                <label>🌐 URL:</label>
+                <span><a href="{{ check.url }}" target="_blank" class="url-link">{{ check.url }}</a></span>
+            </div>
+
+            <!-- ПЕРЕНЕСЕНО: Поточний результат перевірки -->
+            {% if check.last_result and check.last_result != 'error' %}
+            <div class="details-item">
+                <label>📄 Поточний контент:</label>
+                <div class="current-content">
+                    {% if history and history[0] and history[0].extracted_value %}
+                        <span class="content-text">{{ history[0].extracted_value }}</span>
+                        <div class="content-meta">
+                            <small>🔗 Хеш: {{ check.last_content_hash[:16] }}...{% if check.last_content_hash|length > 16 %}{% endif %}</small>
+                        </div>
+                    {% else %}
+                        <span class="content-text content-empty">Контент ще не отримано</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if check.selector %}
+            <div class="details-item">
+                <label>🎯 CSS-селектор:</label>
+                <span>{{ check.selector }}</span>
+            </div>
+            {% endif %}
+
+            <div class="details-item">
+                <label>⏱️ Інтервал:</label>
+                <span>{{ check.interval }} хвилин</span>
+            </div>
+
+            <div class="details-item">
+                <label>📊 Статус:</label>
+                <span class="monitor-status 
+                    {% if check.status == 'active' %}status-active
+                    {% else %}status-inactive{% endif %}">
+                    {{ 'Активна' if check.status == 'active' else 'Неактивна' }}
                 </span>
-            </button>
-            <a href="{{ url_for('index_page') }}" class="btn btn-back">Назад</a>
-        </div>
+            </div>
 
-        {% if history %}
-        <div class="history">
-            <h3>Історія перевірок</h3>
-            {% for entry in history %}
+            <div class="details-item">
+                <label>🔄 Результат останньої перевірки:</label>
+                <span class="monitor-status 
+                    {% if check.last_result == 'changed' %}status-changed
+                    {% elif check.last_result == 'no_change' %}status-no-change
+                    {% elif check.last_result == 'error' %}status-error
+                    {% else %}status-unknown{% endif %}">
+                    {% if check.last_result == 'changed' %}Зміни виявлено
+                    {% elif check.last_result == 'no_change' %}Без змін
+                    {% elif check.last_result == 'error' %}Помилка
+                    {% else %}Ще не перевірялось{% endif %}
+                </span>
+            </div>
+
+            <div class="details-item">
+                <label>⏰ Остання перевірка:</label>
+                <span>
+                    {% if check.last_checked_at %}
+                        {{ check.last_checked_at | format_datetime('%d.%m.%Y, %H:%M:%S') }}
+                    {% else %}
+                        Ще не перевірялось
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="details-item">
+                <label>⏳ Наступна перевірка:</label>
+                <span>
+                    {% if check.next_check_at %}
+                        {{ check.next_check_at | format_datetime('%d.%m.%Y, %H:%M:%S') }}
+                    {% else %}
+                        Не заплановано
+                    {% endif %}
+                </span>
+            </div>
+
+            {% if check.last_error_message %}
+            <div class="details-item">
+                <label>❌ Остання помилка:</label>
+                <span class="history-error">{{ check.last_error_message }}</span>
+            </div>
+            {% endif %}
+
+            <div class="actions">
+                <button class="btn btn-edit" onclick="showEditModal()">✏️ Редагувати</button>
+                <button class="btn btn-delete" onclick="deleteCheck()">🗑️ Видалити</button>
+                <button class="btn btn-action" onclick="runManualCheck()" id="manualCheckBtn">🔄 Позачергова перевірка</button>
+                <button class="btn btn-action" onclick="debugCheck()">🔧 Діагностика</button>
+                <button class="btn btn-action" onclick="toggleCheckStatus()" id="toggleStatusBtn">
+                    <span id="toggleStatusText">
+                        {% if check.status == 'active' %}⏸️ Деактивувати{% else %}▶️ Активувати{% endif %}
+                    </span>
+                </button>
+            </div>
+
+            {% if history %}
+            <div class="history">
+                <h3>📜 Історія перевірок</h3>
+                {% for entry in history[:10] %}
                 <div class="history-entry">
                     <div class="history-header">
-                        <span class="history-date">{{ entry.timestamp | format_datetime('%d %B %Y, %H:%M:%S UTC') }}</span>
-                        <span class="history-status 
+                        <span class="history-date">{{ entry.timestamp | format_datetime('%d %B %Y, %H:%M:%S') }}</span>
+                        <span class="monitor-status 
                             {% if entry.status == 'changed' %}status-changed
                             {% elif entry.status == 'no_change' %}status-no-change
                             {% elif entry.status == 'error' %}status-error
@@ -108,36 +138,298 @@
                         </span>
                     </div>
                     <div class="history-content">
-                        {% if entry.status == 'error' and entry.error_message %}
-                            <span class="history-error">Помилка: {{ entry.error_message }}</span>
-                        {% elif entry.extracted_value %}
-                            <span class="history-value">Контент: {{ entry.extracted_value }}</span>
+                        {% if entry.extracted_value %}
+                        <p><strong>📄 Контент:</strong> <span class="history-value">{{ entry.extracted_value }}</span></p>
+                        {% endif %}
+                        {% if entry.error_message %}
+                        <p><strong>❌ Помилка:</strong> <span class="history-error">{{ entry.error_message }}</span></p>
                         {% endif %}
                     </div>
                 </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
-    <script>
-        // Отримуємо check_id з URL
-        const pathParts = window.location.pathname.split('/');
-        const checkId = pathParts[pathParts.length - 1];
+    <!-- Модальне вікно для редагування -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Редагувати перевірку</h3>
+                <span class="close" onclick="hideEditModal()">&times;</span>
+            </div>
+            <form id="editCheckForm">
+                <div class="form-group">
+                    <label for="editName">📝 Назва:</label>
+                    <input type="text" id="editName" name="name" value="{{ check.name or '' }}" required>
+                </div>
 
-        async function deleteCheck() {
-            const checkName = document.getElementById('monitorName').textContent || 'цю перевірку';
-            
-            if (!confirm(`Ви впевнені, що хочете видалити перевірку "${checkName}"?\n\nЦе видалить:\n- Конфігурацію перевірки\n- Всю історію перевірок\n- Заплановані завдання\n\nЦю дію неможливо скасувати!`)) {
-                return;
+                <div class="form-group">
+                    <label for="editUrl">🌐 URL:</label>
+                    <input type="url" id="editUrl" name="url" value="{{ check.url }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editSelector">🎯 CSS-селектор:</label>
+                    <input type="text" id="editSelector" name="selector" value="{{ check.selector or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="editInterval">⏱️ Інтервал (хв.):</label>
+                    <input type="number" id="editInterval" name="interval" value="{{ check.interval }}" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editThreshold">📊 Поріг змін (%):</label>
+                    <input type="number" id="editThreshold" name="change_threshold" value="{{ check.change_threshold or '' }}" min="0" max="100" step="0.1">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-submit">💾 Зберегти</button>
+                    <button type="button" class="btn btn-cancel" onclick="hideEditModal()">❌ Скасувати</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        /* Стилі для модального вікна */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        /* ДОДАНО: Стилі для клікабельного URL */
+        .url-link {
+            color: #007bff;
+            text-decoration: none;
+            word-break: break-all;
+            border-bottom: 1px dotted #007bff;
+        }
+
+        .url-link:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        /* ДОДАНО: Стилі для поточного контенту */
+        .current-content {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 5px;
+        }
+
+        .content-text {
+            display: block;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #495057;
+        }
+
+        .content-text.content-empty {
+            font-style: italic;
+            color: #6c757d;
+        }
+
+        .content-meta {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .content-meta small {
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal form {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-submit {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+
+    <script>
+        const checkId = '{{ check_id }}';
+        const currentStatus = '{{ check.status }}';
+
+        // Функції модального вікна
+        function showEditModal() {
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function hideEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Закриття модального вікна при кліку поза ним
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                hideEditModal();
             }
+        }
+
+        // Обробка форми редагування
+        document.getElementById('editCheckForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                url: formData.get('url'),
+                selector: formData.get('selector') || null,
+                interval: parseInt(formData.get('interval')),
+                change_threshold: parseFloat(formData.get('change_threshold')) || null
+            };
 
             try {
+                showMessage('⏳ Зберігаємо зміни...', 'info');
+                
                 const response = await fetch(`/api/checks/${checkId}`, {
-                    method: 'DELETE',
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                showMessage('✅ Зміни збережено успішно!', 'success');
+                hideEditModal();
+                
+                // Перезавантажуємо сторінку через 1.5 секунди
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error('❌ Помилка збереження:', error);
+                showMessage(`❌ Помилка: ${error.message}`, 'error');
+            }
+        });
+
+        // Позачергова перевірка
+        async function runManualCheck() {
+            const btn = document.getElementById('manualCheckBtn');
+            const originalText = btn.innerHTML;
+            
+            try {
+                btn.innerHTML = '⏳ Перевіряємо...';
+                btn.disabled = true;
+                
+                showMessage('🔄 Запускаємо позачергову перевірку...', 'info');
+
+                const response = await fetch(`/api/checks/${checkId}/manual-check`, {
+                    method: 'POST'
                 });
 
                 if (!response.ok) {
@@ -147,28 +439,134 @@
 
                 const result = await response.json();
                 
-                alert(`Перевірку "${result.deleted_check_name || checkName}" успішно видалено!`);
-                window.location.href = '{{ url_for("index_page") }}';
+                let message = `✅ Перевірка завершена: ${getStatusText(result.status)}`;
+                if (result.extracted_text) {
+                    message += `\n📄 Контент: ${result.extracted_text}`;
+                }
                 
+                showMessage(message, result.status === 'error' ? 'error' : 'success');
+                
+                // Перезавантажуємо сторінку через 2 секунди
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+
             } catch (error) {
-                console.error('Помилка видалення перевірки:', error);
-                alert(`Помилка при видаленні перевірки: ${error.message}\n\nДивіться консоль для деталей.`);
+                console.error('❌ Помилка позачергової перевірки:', error);
+                showMessage(`❌ Помилка: ${error.message}`, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
 
-        async function editCheck() {
-            alert('Функція редагування ще не реалізована');
-        }
-
-        async function runManualCheck() {
-            alert('Функція позачергової перевірки ще не реалізована');
-        }
-
+        // Деактивація/Активація
         async function toggleCheckStatus() {
-            alert('Функція зміни статусу ще не реалізована');
+            const btn = document.getElementById('toggleStatusBtn');
+            const statusText = document.getElementById('toggleStatusText');
+            const originalText = statusText.innerHTML;
+            
+            try {
+                statusText.innerHTML = '⏳ Змінюємо...';
+                btn.disabled = true;
+                
+                const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+                const actionText = newStatus === 'active' ? 'активуємо' : 'деактивуємо';
+                
+                showMessage(`🔄 ${actionText.charAt(0).toUpperCase() + actionText.slice(1)} перевірку...`, 'info');
+
+                const response = await fetch(`/api/checks/${checkId}/toggle-status`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                let message = `✅ Перевірку ${newStatus === 'active' ? 'активовано' : 'деактивовано'}`;
+                if (result.check_result && newStatus === 'active') {
+                    message += `\n🔄 Виконано перевірку: ${getStatusText(result.check_result.status)}`;
+                }
+                
+                showMessage(message, 'success');
+                
+                // Перезавантажуємо сторінку через 2 секунди
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+
+            } catch (error) {
+                console.error('❌ Помилка зміни статусу:', error);
+                showMessage(`❌ Помилка: ${error.message}`, 'error');
+            } finally {
+                statusText.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
-        console.log('Monitor details page loaded for check ID:', checkId);
+        // Допоміжні функції
+        function getStatusText(status) {
+            switch (status) {
+                case 'changed': return 'Зміни виявлено';
+                case 'no_change': return 'Без змін';
+                case 'error': return 'Помилка';
+                default: return 'Невідомо';
+            }
+        }
+
+        function showMessage(message, type = 'success') {
+            const existingMessage = document.querySelector('.message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<p>${message}</p>`;
+            
+            const actions = document.querySelector('.actions');
+            actions.insertAdjacentElement('beforebegin', messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Існуючі функції...
+        async function debugCheck() {
+            try {
+                console.log('🔧 Запускаємо діагностику...');
+                const response = await fetch(`/api/checks/${checkId}/debug`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                alert('✅ Діагностика завершена. Перевірте логи сервера для деталей.');
+                console.log('Результат діагностики:', result);
+                
+                // Перезавантажуємо сторінку для оновлення даних
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('❌ Помилка діагностики:', error);
+                alert('❌ Помилка діагностики: ' + error.message);
+            }
+        }
+
+        function deleteCheck() {
+            if (confirm('❌ Видалити цю перевірку назавжди?')) {
+                alert('🚧 Функція видалення буде додана пізніше');
+            }
+        }
     </script>
 </body>
 </html>

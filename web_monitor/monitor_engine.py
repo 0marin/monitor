@@ -57,18 +57,28 @@ def perform_check(check_id, name, url, selector, last_hash):
         extracted_text, current_hash = get_content_hash_from_element(selected_element)
         
         # ВИПРАВЛЕНО: Детальне логування для діагностики
-        logging.info(f"Check for '{name}' (ID: {check_id}): Extracted text='{extracted_text}', Current hash='{current_hash}', Last hash='{last_hash}'")
+        logging.info(f"Check for '{name}' (ID: {check_id}:")
+        logging.info(f"  Extracted text: '{extracted_text}'")
+        logging.info(f"  Current hash: '{current_hash}'")
+        logging.info(f"  Last hash: '{last_hash}'")
+        logging.info(f"  Hash comparison: current==last -> {current_hash == last_hash}")
 
         if last_hash is None: # Первая проверка для этого элемента
-            status = "changed" # Считаем первой проверкой как изменение, чтобы сохранить начальное состояние
-            logging.info(f"First check for '{name}' (ID: {check_id}). Storing initial hash: {current_hash}. Extracted: '{extracted_text}'")
+            status = "changed" # Считаем первой проверкой как изменение
+            logging.info(f"First check for '{name}' (ID: {check_id}). Status: {status}. Hash: {current_hash}")
         elif current_hash == last_hash:
             status = "no_change"
-            logging.info(f"No change detected for '{name}' (ID: {check_id}). Hash unchanged: {current_hash}")
+            logging.info(f"No change detected for '{name}' (ID: {check_id}). Status: {status}. Hash unchanged: {current_hash}")
         else:
             status = "changed"
-            logging.info(f"Change detected for '{name}' (ID: {check_id}). Old hash: {last_hash}, New hash: {current_hash}. New content: '{extracted_text}'")
+            logging.info(f"Change detected for '{name}' (ID: {check_id}). Status: {status}. Old hash: {last_hash}, New hash: {current_hash}")
         
+        # ДОДАНО: Додаткова перевірка для діагностики
+        if status == "changed" and last_hash is not None and extracted_text:
+            logging.info(f"CHANGE ANALYSIS for '{name}' (ID: {check_id}:")
+            logging.info(f"  Text length: {len(extracted_text)} chars")
+            logging.info(f"  Text content: '{extracted_text[:100]}{'...' if len(extracted_text) > 100 else ''}'")
+            
         # error_message остается None, так как ошибок не было на этом этапе
         return status, current_hash, extracted_text, error_message
 

@@ -3,54 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Додати/Редагувати Перевірку</title>
+    <title>Додати перевірку - Web Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header>
-        <h1 id="pageTitle">Додати нову перевірку</h1>
-    </header>
-    <main class="container">
-        <form id="checkForm">
-            <div class="form-group">
-                <label for="name">Назва перевірки (опціонально):</label>
-                <input type="text" id="name" name="name">
-                <div class="hint">Дайте зрозуміле ім'я для перевірки.</div>
+    <div class="container">
+        <header>
+            <h1>✨ Додати нову перевірку</h1>
+            <div class="actions">
+                <a href="{{ url_for('index_page') }}" class="btn btn-back">⬅️ Назад</a>
             </div>
+        </header>
 
-            <div class="form-group">
-                <label for="url">Посилання на сторінку для перевірки (обов'язково):</label>
-                <input type="url" id="url" name="url" required>
-                <div class="hint">Введіть повний URL сайту для моніторингу.</div>
-            </div>
+        <div class="form-container">
+            <form id="addCheckForm">
+                <div class="form-group">
+                    <label for="name">📝 Назва перевірки:</label>
+                    <input type="text" id="name" name="name" placeholder="Наприклад: Ціни на товари">
+                    <div class="hint">Дайте зрозумілу назву для вашої перевірки</div>
+                </div>
 
-            <div class="form-group">
-                <label for="selector">Елемент для перевірки (CSS селектор, опціонально):</label>
-                <input type="text" id="selector" name="selector">
-                <div class="hint">Залиште порожнім для перевірки всієї сторінки.</div>
-            </div>
+                <div class="form-group">
+                    <label for="url">🌐 URL сайту:</label>
+                    <input type="url" id="url" name="url" required placeholder="https://example.com">
+                    <div class="hint">Введіть повний URL сайту для моніторингу</div>
+                </div>
 
-            <div class="form-group">
-                <label for="change_threshold">% зміни сторінки (опціонально):</label>
-                <input type="number" id="change_threshold" name="change_threshold" min="0" max="100" step="0.1">
-                <div class="hint">Використовується, якщо не вказано CSS селектор (0-100).</div>
-            </div>
+                <div class="form-group">
+                    <label for="selector">🎯 CSS-селектор (опціонально):</label>
+                    <input type="text" id="selector" name="selector" placeholder="div.price, .title, #content">
+                    <div class="hint">Вкажіть селектор для моніторингу конкретного елементу. Залиште порожнім для перевірки всієї сторінки</div>
+                </div>
 
-            <div class="form-group">
-                <label for="interval">Часовий інтервал перевірки (хвилини, обов'язково):</label>
-                <input type="number" id="interval" name="interval" min="1" required>
-                <div class="hint">Частота перевірки (наприклад, 15 для перевірки кожні 15 хвилин).</div>
-            </div>
+                <div class="form-group">
+                    <label for="interval">⏱️ Інтервал перевірки (хвилини):</label>
+                    <input type="number" id="interval" name="interval" required min="1" value="30" placeholder="30">
+                    <div class="hint">Як часто перевіряти зміни (мінімум 1 хвилина)</div>
+                </div>
 
-            <div class="form-actions">
-                <button type="submit" id="submitButton" class="btn btn-submit">Створити перевірку</button>
-                <a href="{{ url_for('index_page') }}" class="btn btn-back">Назад</a>
-            </div>
-        </form>
-    </main>
-    <footer>
-        <p>&copy; 2025 Web Monitor</p>
-    </footer>
+                <div class="form-group">
+                    <label for="change_threshold">📊 Поріг змін (%, опціонально):</label>
+                    <input type="number" id="change_threshold" name="change_threshold" min="0" max="100" step="0.1" placeholder="10">
+                    <div class="hint">Мінімальний відсоток змін для сповіщення (0-100)</div>
+                </div>
+
+                <button type="submit" class="btn btn-submit">🚀 Створити перевірку</button>
+            </form>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
