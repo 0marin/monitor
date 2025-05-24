@@ -55,21 +55,19 @@ def perform_check(check_id, name, url, selector, last_hash):
             return status, current_hash, extracted_text, error_message # current_hash and extracted_text are None
 
         extracted_text, current_hash = get_content_hash_from_element(selected_element)
-        # Залогируем извлеченный текст и хеш на уровне DEBUG, чтобы не засорять INFO лог при каждой проверке
-        logging.debug(f"Check for '{name}' (ID: {check_id}): Extracted text='{extracted_text}', Hash='{current_hash}'")
+        
+        # ВИПРАВЛЕНО: Детальне логування для діагностики
+        logging.info(f"Check for '{name}' (ID: {check_id}): Extracted text='{extracted_text}', Current hash='{current_hash}', Last hash='{last_hash}'")
 
         if last_hash is None: # Первая проверка для этого элемента
             status = "changed" # Считаем первой проверкой как изменение, чтобы сохранить начальное состояние
             logging.info(f"First check for '{name}' (ID: {check_id}). Storing initial hash: {current_hash}. Extracted: '{extracted_text}'")
         elif current_hash == last_hash:
             status = "no_change"
-            # Логируем извлеченный текст только если он изменился или это первая проверка, 
-            # чтобы не дублировать информацию в логах при no_change.
-            # Если нужно видеть текст при каждой no_change, можно добавить сюда logging.info
-            logging.info(f"No change detected for '{name}' (ID: {check_id}). Hash: {current_hash}")
+            logging.info(f"No change detected for '{name}' (ID: {check_id}). Hash unchanged: {current_hash}")
         else:
             status = "changed"
-            logging.info(f"Change detected for '{name}' (ID: {check_id}). Old hash: {last_hash}, New hash: {current_hash}. Extracted: '{extracted_text}'")
+            logging.info(f"Change detected for '{name}' (ID: {check_id}). Old hash: {last_hash}, New hash: {current_hash}. New content: '{extracted_text}'")
         
         # error_message остается None, так как ошибок не было на этом этапе
         return status, current_hash, extracted_text, error_message

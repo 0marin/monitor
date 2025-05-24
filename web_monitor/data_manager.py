@@ -1,7 +1,8 @@
 import json
 import os
 import logging
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 CHECKS_FILE = 'web_monitor/data/checks.json'
 HISTORY_DIR = 'web_monitor/data/history'
@@ -85,6 +86,62 @@ def save_check_history_entry(check_id, history_entry):
     except Exception as e: # Ловим другие возможные ошибки от fsync
         logging.error(f"Unexpected error during saving/flushing history for {check_id}: {e}")
 
+def add_check(check_data):
+    """
+    Додає нову перевірку до списку та зберігає у файл checks.json.
+    Генерує унікальний ID та додає системні поля.
+    """
+    # Генеруємо унікальний ID
+    check_id = str(uuid.uuid4())
+    current_time = datetime.now(timezone.utc).isoformat()
+    
+    # Створюємо повну конфігурацію перевірки
+    new_check = {
+        "id": check_id,
+        "name": check_data.get("name"),
+        "url": check_data["url"],
+        "selector": check_data.get("selector"),
+        "change_threshold": check_data.get("change_threshold"),
+        "interval": check_data["interval"],
+        "status": "active",  # За замовчуванням нові перевірки активні
+        "created_at": current_time,
+        "last_checked_at": None,
+        "last_result": None,
+        "last_content_hash": None,
+        "next_check_at": None,
+        "last_error_message": None
+    }
+    
+    # Завантажуємо існуючі перевірки
+    all_checks = load_checks()
+    
+    # Додаємо нову перевірку
+    all_checks.append(new_check)
+    
+    # Зберігаємо оновлений список
+    save_checks(all_checks)
+    
+    logging.info(f"Нову перевірку створено: ID={check_id}, Name='{new_check['name']}', URL={new_check['url']}")
+    
+    return new_check
+
+def delete_check_history(check_id):
+    """
+    Видаляє файл історії для вказаного check_id.
+    Повертає True, якщо файл було видалено або його не існувало.
+    """
+    filepath = get_history_filepath(check_id)
+    if os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+            logging.info(f"Deleted history file for check_id {check_id}: {filepath}")
+            return True
+        except OSError as e:
+            logging.error(f"Error deleting history file for check_id {check_id} at {filepath}: {e}")
+            return False
+    else:
+        logging.info(f"History file for check_id {check_id} does not exist: {filepath}")
+        return True  # Вважаємо успіхом, якщо файлу не було
 
 if __name__ == '__main__':
     if not logging.getLogger().hasHandlers():

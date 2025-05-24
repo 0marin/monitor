@@ -5,12 +5,21 @@ import logging # Ваш импорт logging
 from datetime import datetime, timezone # Было в предыдущей версии, вероятно, нужно для created_at и т.д.
 
 # --- ИЗМЕНИТЬ ЭТИ ИМПОРТЫ ---
-from . import data_manager    # Импортируем наш модуль
-from . import scheduler_tasks # Импортируем модуль планировщика
-from . import monitor_engine  # Если он вам нужен напрямую в app.py
-from .telegram_sender import send_telegram_message # Этот импорт, вероятно, уже правильный
+# ВИПРАВЛЕНО: Замінюємо відносні імпорти на абсолютні для прямого запуску
+try:
+    # Спробуємо відносні імпорти (для запуску як модуль)
+    from . import data_manager
+    from . import scheduler_tasks
+    from . import monitor_engine
+    from .telegram_sender import send_telegram_message
+except ImportError:
+    # Якщо не вдалося, використовуємо абсолютні імпорти (для прямого запуску)
+    import data_manager
+    import scheduler_tasks
+    import monitor_engine
+    from telegram_sender import send_telegram_message
 
-# ... остальной код app.py (настройка логирования, app = Flask(__name__), и т.д.)
+# ... остальной код app.py (настройка логирования, app = Flask(__name__), і т.д.)
 
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -18,18 +27,36 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def format_datetime_filter(value, format='%d %B %Y %H:%M:%S %Z'):
     """Форматирует строку ISO datetime в читаемый вид."""
-    if value is None:
+    if value is None or value == "":
         return ""
     try:
-        # Предполагаем, что value - это строка ISO, заканчивающаяся на 'Z' или с offset
-        dt_object = datetime.fromisoformat(value.replace('Z', '+00:00'))
-        # Если хотим отображать в локальном времени сервера (не рекомендуется для консистентности)
-        # dt_object = dt_object.astimezone(None) 
-        # Для простоты оставим в UTC или как есть в строке
+        # Предполагаем, что value - это строка ISO
+        if isinstance(value, str):
+            # Обрабатываем разные форматы ISO datetime
+            if value.endswith('Z'):
+                dt_object = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            elif '+' in value[-6:] or value.endswith('00:00'):
+                dt_object = datetime.fromisoformat(value)
+            else:
+                # Если нет информации о timezone, предполагаем UTC
+                dt_object = datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+        else:
+            dt_object = value
+        
+        # Якщо формат містить UTC, відображаємо в UTC
+        if 'UTC' in format:
+            # Переконуємося, що час в UTC
+            if dt_object.tzinfo is None:
+                dt_object = dt_object.replace(tzinfo=timezone.utc)
+            else:
+                dt_object = dt_object.astimezone(timezone.utc)
+            # Замінюємо %Z на UTC для відображення
+            format = format.replace('%Z', 'UTC')
+        
         return dt_object.strftime(format)
     except (ValueError, TypeError) as e:
         logging.warning(f"Could not format datetime string '{value}': {e}")
-        return value # Возвращаем исходное значение, если не удалось отформатировать
+        return str(value) # Возвращаем строковое представление, если не удалось отформатировать
 
 app.jinja_env.filters['format_datetime'] = format_datetime_filter
 
@@ -39,7 +66,12 @@ app.jinja_env.filters['format_datetime'] = format_datetime_filter
 @app.route('/')
 def index_page():
     """Отображает главную страницу со списком проверок."""
-    return render_template('index.html')
+    try:
+        checks = data_manager.load_checks()
+        return render_template('index.html', checks=checks)
+    except Exception as e:
+        app.logger.error(f"Error loading checks for index page: {e}", exc_info=True)
+        return render_template('index.html', checks=[], error="Failed to load checks")
 
 @app.route('/add')
 def add_check_page():
@@ -49,8 +81,26 @@ def add_check_page():
 @app.route('/check/<check_id>')
 def monitor_details_page(check_id):
     """Отображает страницу с детальной информацией о проверке."""
-    # Логика получения данных о проверке по check_id будет здесь
-    return render_template('monitor_details.html', check_id=check_id)
+    try:
+        check_details = data_manager.get_check_by_id(check_id)
+        if not check_details:
+            return render_template('error.html', 
+                                 error_message=f"Check with ID {check_id} not found"), 404
+        
+        # Получаем историю проверок для данной проверки (ВИПРАВЛЕНО НАЗВУ ФУНКЦІЇ)
+        check_history = data_manager.load_check_history(check_id)
+        
+        # Сортируем историю по времени (новые сначала) для удобства отображения
+        check_history.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return render_template('monitor_details.html', 
+                             check=check_details, 
+                             history=check_history,
+                             check_id=check_id)
+    except Exception as e:
+        app.logger.error(f"Error loading check details for {check_id}: {e}", exc_info=True)
+        return render_template('error.html', 
+                             error_message="An error occurred while loading check details"), 500
 
 # --- API Эндпоинты ---
 
@@ -101,8 +151,24 @@ def api_add_check():
         }
         
         created_check = data_manager.add_check(new_check_data)
+        
+        # ВИПРАВЛЕНО: Додаємо нову перевірку до планувальника
         if created_check.get("status") == "active":
-            scheduler_tasks.reschedule_check(created_check)
+            try:
+                # ВИПРАВЛЕНО: Додаємо check_id як аргумент функції
+                scheduler_tasks.scheduler.add_job(
+                    func=scheduler_tasks.scheduled_check_task,
+                    trigger='interval',
+                    minutes=created_check['interval'],
+                    args=[created_check['id']],  # Передаємо check_id як аргумент
+                    id=created_check['id'],
+                    name=f"Check: {created_check.get('name', created_check['id'])}",
+                    replace_existing=True
+                )
+                logging.info(f"Додано завдання до планувальника для перевірки: {created_check['id']}")
+            except Exception as e:
+                logging.error(f"Помилка додавання завдання до планувальника: {e}")
+        
         return jsonify(created_check), 201
     except Exception as e:
         app.logger.error(f"Error adding check: {e}", exc_info=True)
@@ -166,9 +232,9 @@ def api_update_check(check_id):
     
     # Перепланируем или удаляем задачу в зависимости от статуса
     if existing_check.get("status") == "active":
-        scheduler_tasks.reschedule_check(existing_check)
+        scheduler_tasks.update_job(check_id, existing_check['interval'])
     else: # Если статус не 'active', удаляем задачу из планировщика
-        scheduler_tasks.remove_scheduled_check(check_id)
+        scheduler_tasks.remove_job(check_id)
         
     return jsonify(existing_check), 200
 
@@ -178,36 +244,65 @@ def api_delete_check(check_id):
     existing_check = data_manager.get_check_by_id(check_id)
     if not existing_check:
         return jsonify({"error": "Check not found"}), 404
+    
+    check_name = existing_check.get('name', check_id)
+    
+    try:
+        # 1. Видаляємо завдання з планувальника
+        scheduler_tasks.remove_job(check_id)
         
-    all_checks = data_manager.load_checks()
-    all_checks = [chk for chk in all_checks if chk.get("id") != check_id]
-    data_manager.save_checks(all_checks)
-    
-    scheduler_tasks.remove_scheduled_check(check_id) # Удаляем из планировщика
-    
-    # TODO: Удалить историю проверки и логи, связанные с ней
-    
-    return jsonify({"message": f"Check {check_id} deleted successfully"}), 200
+        # 2. Видаляємо запис з checks.json
+        all_checks = data_manager.load_checks()
+        all_checks = [chk for chk in all_checks if chk.get("id") != check_id]
+        data_manager.save_checks(all_checks)
+        
+        # 3. ВИПРАВЛЕНО: Видаляємо файл історії
+        data_manager.delete_check_history(check_id)
+        
+        # 4. Логуємо успішне видалення
+        logging.info(f"Check '{check_name}' (ID: {check_id}) completely deleted with all associated data")
+        
+        return jsonify({
+            "message": f"Check {check_id} deleted successfully", 
+            "deleted_check_name": check_name
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error during complete deletion of check {check_id}: {e}", exc_info=True)
+        return jsonify({"error": "An error occurred while deleting the check"}), 500
 
+@app.errorhandler(404)
+def not_found_error(error):
+    """Обробник для 404 помилок."""
+    logging.warning(f"404 error for request: {request.url}")
+    return render_template('error.html', 
+                         error_message="Сторінка не знайдена"), 404
 
 if __name__ == '__main__':
-    # Убедимся, что каталог data и файл checks.json существуют при запуске
-    # data_manager.py уже это делает при импорте (для HISTORY_DIR)
-    # CHECKS_FILE директория создается в data_manager.save_checks()
-    
-    # Планировщик уже инициализирован и запущен на глобальном уровне модуля
-    # функцией scheduler_tasks.init_scheduler(app_checks)
-    
-    # Запускаем Flask приложение
+    # Ініціалізуємо та запускаємо планувальник
     try:
-        # scheduler_tasks.start_scheduler() # <<< УДАЛИТЕ ИЛИ ЗАКОММЕНТИРУЙТЕ ЭТУ СТРОКУ
+        print("=== ДІАГНОСТИКА ЗАПУСКУ ===")
+        # Завантажуємо існуючі перевірки для ініціалізації планувальника
+        existing_checks = data_manager.load_checks()
+        active_checks = [check for check in existing_checks if check.get("status") == "active"]
+        
+        print(f"Знайдено перевірок: {len(existing_checks)}")
+        print(f"Активних перевірок: {len(active_checks)}")
+        
+        for check in active_checks:
+            logging.info(f"  - Активна перевірка: {check.get('name', 'Без назви')} (ID: {check['id']}, Інтервал: {check.get('interval', 'N/A')} хв.)")
+        # Ініціалізуємо планувальник з існуючими перевірками
+        scheduler_tasks.init_scheduler(existing_checks)
+        
+        # Запускаємо Flask додаток
         app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
-        # use_reloader=False важен, чтобы планировщик не запускался дважды в debug режиме
     except (KeyboardInterrupt, SystemExit):
         logging.info("Application shutting down...")
-        # scheduler_tasks.shutdown_scheduler() # atexit уже должен это сделать
     finally:
-        # Дополнительная проверка, если atexit не сработал или для явности
-        if scheduler_tasks.scheduler and scheduler_tasks.scheduler.running:
-             logging.info("Ensuring scheduler is shut down in finally block...")
-             scheduler_tasks.shutdown_scheduler()
+        # Зупиняємо планувальник при завершенні
+        if hasattr(scheduler_tasks, 'scheduler') and scheduler_tasks.scheduler and scheduler_tasks.scheduler.running:
+            logging.info("Ensuring scheduler is shut down in finally block...")
+            try:
+                scheduler_tasks.scheduler.shutdown(wait=False)
+            except Exception as e:
+                logging.error(f"Error shutting down scheduler: {e}")

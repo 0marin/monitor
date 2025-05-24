@@ -3,45 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Деталі Перевірки</title>
+    <title>Деталі перевірки - {{ check.name or 'Безіменна перевірка' }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header>
-        <h1>Деталі Перевірки: <span id="monitorNameTitle"></span></h1>
+        <h1>Деталі перевірки</h1>
     </header>
-    <main class="container">
-        <div id="monitorDetailsContainer">
-            <p><strong>Назва:</strong> <span id="monitorName">Завантаження...</span></p>
-            <p><strong>URL:</strong> <a id="monitorUrl" href="#" target="_blank">Завантаження...</a></p>
-            <p><strong>CSS-селектор:</strong> <span id="monitorSelector">Завантаження...</span></p>
-            <p><strong>Поріг зміни (%):</strong> <span id="monitorThreshold">Завантаження...</span></p>
-            <p><strong>Інтервал:</strong> <span id="monitorInterval">Завантаження...</span> хв.</p>
-            <p><strong>Статус:</strong> <span id="monitorStatus">Завантаження...</span></p>
-            <p><strong>Остання перевірка:</strong> <span id="lastCheckTime">Завантаження...</span></p>
-            <p><strong>Наступна перевірка:</strong> <span id="nextCheckTime">Завантаження...</span></p>
-            <p><strong>Результат останньої перевірки:</strong> <span id="lastCheckResult">Завантаження...</span></p>
+    
+    <div class="details-container">
+        <div class="details-item">
+            <label>Назва:</label>
+            <span id="monitorName">{{ check.name or 'Безіменна перевірка' }}</span>
+        </div>
+        
+        <div class="details-item">
+            <label>URL:</label>
+            <span>{{ check.url }}</span>
+        </div>
+        
+        <div class="details-item">
+            <label>CSS-селектор:</label>
+            <span>{{ check.selector or 'Не вказано' }}</span>
+        </div>
+        
+        <div class="details-item">
+            <label>Інтервал:</label>
+            <span>{{ check.interval }} хвилин</span>
+        </div>
+        
+        <div class="details-item">
+            <label>Статус:</label>
+            <span class="monitor-status 
+                {% if check.status == 'active' %}status-active
+                {% else %}status-inactive{% endif %}">
+                {% if check.status == 'active' %}Активна{% else %}Неактивна{% endif %}
+            </span>
+        </div>
+        
+        <div class="details-item">
+            <label>Результат останньої перевірки:</label>
+            <span class="monitor-status 
+                {% if check.last_result == 'changed' %}status-changed
+                {% elif check.last_result == 'no_change' %}status-no-change  
+                {% elif check.last_result == 'error' %}status-error
+                {% else %}status-unknown{% endif %}">
+                {% if check.last_result == 'changed' %}Зміни виявлено
+                {% elif check.last_result == 'no_change' %}Без змін
+                {% elif check.last_result == 'error' %}Помилка
+                {% else %}Ще не перевірялось{% endif %}
+            </span>
+        </div>
+        
+        <div class="details-item">
+            <label>Остання перевірка:</label>
+            <span>
+                {% if check.last_checked_at %}
+                    {{ check.last_checked_at | format_datetime('%d.%m.%Y, %H:%M:%S UTC') }}
+                {% else %}
+                    Ще не перевірялось
+                {% endif %}
+            </span>
+        </div>
+        
+        <div class="details-item">
+            <label>Наступна перевірка:</label>
+            <span>
+                {% if check.next_check_at %}
+                    {{ check.next_check_at | format_datetime('%d.%m.%Y, %H:%M:%S') }}
+                {% else %}
+                    Не заплановано
+                {% endif %}
+            </span>
         </div>
 
         <div class="actions">
-            <button id="runCheckNow" class="btn">Позачергова перевірка</button>
-            <button id="toggleActive" class="btn">Активувати/Деактивувати</button>
-            <button id="editCheck" class="btn btn-edit">Редагувати</button>
-            <button id="deleteCheck" class="btn btn-delete">Видалити</button>
-            <a href="{{ url_for('index_page') }}" class="btn btn-back">Назад до списку</a>
+            <button class="btn btn-edit" onclick="editCheck()">Редагувати</button>
+            <button class="btn btn-delete" onclick="deleteCheck()">Видалити</button>
+            <button class="btn btn-action" onclick="runManualCheck()">Позачергова перевірка</button>
+            <button class="btn btn-action" onclick="toggleCheckStatus()">
+                <span id="toggleStatusText">
+                    {% if check.status == 'active' %}Деактивувати{% else %}Активувати{% endif %}
+                </span>
+            </button>
+            <a href="{{ url_for('index_page') }}" class="btn btn-back">Назад</a>
         </div>
 
+        {% if history %}
         <div class="history">
-            <h3>Історія останніх 20 перевірок:</h3>
-            <ul id="checkHistoryList">
-                <!-- Історія буде завантажена сюди -->
-                <li>Завантаження історії...</li>
-            </ul>
+            <h3>Історія перевірок</h3>
+            {% for entry in history %}
+                <div class="history-entry">
+                    <div class="history-header">
+                        <span class="history-date">{{ entry.timestamp | format_datetime('%d %B %Y, %H:%M:%S UTC') }}</span>
+                        <span class="history-status 
+                            {% if entry.status == 'changed' %}status-changed
+                            {% elif entry.status == 'no_change' %}status-no-change
+                            {% elif entry.status == 'error' %}status-error
+                            {% else %}status-unknown{% endif %}">
+                            {% if entry.status == 'changed' %}Зміни виявлено
+                            {% elif entry.status == 'no_change' %}Без змін
+                            {% elif entry.status == 'error' %}Помилка
+                            {% else %}Невідомо{% endif %}
+                        </span>
+                    </div>
+                    <div class="history-content">
+                        {% if entry.status == 'error' and entry.error_message %}
+                            <span class="history-error">Помилка: {{ entry.error_message }}</span>
+                        {% elif entry.extracted_value %}
+                            <span class="history-value">Контент: {{ entry.extracted_value }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
         </div>
-    </main>
-    <footer>
-        <p>&copy; 2025 Web Monitor</p>
-    </footer>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+        {% endif %}
+    </div>
+
+    <script>
+        // Отримуємо check_id з URL
+        const pathParts = window.location.pathname.split('/');
+        const checkId = pathParts[pathParts.length - 1];
+
+        async function deleteCheck() {
+            const checkName = document.getElementById('monitorName').textContent || 'цю перевірку';
+            
+            if (!confirm(`Ви впевнені, що хочете видалити перевірку "${checkName}"?\n\nЦе видалить:\n- Конфігурацію перевірки\n- Всю історію перевірок\n- Заплановані завдання\n\nЦю дію неможливо скасувати!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/checks/${checkId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                alert(`Перевірку "${result.deleted_check_name || checkName}" успішно видалено!`);
+                window.location.href = '{{ url_for("index_page") }}';
+                
+            } catch (error) {
+                console.error('Помилка видалення перевірки:', error);
+                alert(`Помилка при видаленні перевірки: ${error.message}\n\nДивіться консоль для деталей.`);
+            }
+        }
+
+        async function editCheck() {
+            alert('Функція редагування ще не реалізована');
+        }
+
+        async function runManualCheck() {
+            alert('Функція позачергової перевірки ще не реалізована');
+        }
+
+        async function toggleCheckStatus() {
+            alert('Функція зміни статусу ще не реалізована');
+        }
+
+        console.log('Monitor details page loaded for check ID:', checkId);
+    </script>
 </body>
 </html>

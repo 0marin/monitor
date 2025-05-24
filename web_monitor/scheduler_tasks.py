@@ -52,27 +52,31 @@ def scheduled_check_task(check_id):
     # Обновляем основную конфигурацию проверки
     check_config['last_checked_at'] = current_time_iso
     check_config['last_result'] = status
-    if status != "error": # Обновляем хеш только если не было ошибки при проверке
+    
+    # ВИПРАВЛЕНО: Оновлюємо хеш завжди при успішній перевірці (не тільки при відсутності помилок)
+    if status in ["changed", "no_change"]: # Оновлюємо хеш при будь-якому успішному статусі
         check_config['last_content_hash'] = new_hash
-    check_config['last_error_message'] = error_msg
+        logging.debug(f"Updated hash for check {check_id}: {new_hash}")
+    
+    # Очищуємо повідомлення про помилку при успішній перевірці
+    if status != "error":
+        check_config['last_error_message'] = None
+    else:
+        check_config['last_error_message'] = error_msg
     
     # Рассчитываем следующее время запуска для информации (приблизительно)
-    # Это поле больше не используется для управления планировщиком напрямую,
-    # но может быть полезно для отображения.
     try:
         job = scheduler.get_job(check_id)
         if job and job.next_run_time:
             check_config['next_check_at'] = job.next_run_time.isoformat()
         else:
-            # Если джоба нет или время следующего запуска неизвестно, можно оставить старое или None
             check_config['next_check_at'] = check_config.get('next_check_at') 
     except Exception as e:
         logging.warning(f"Scheduler: Could not get next_run_time for job {check_id}: {e}")
         check_config['next_check_at'] = check_config.get('next_check_at')
 
-
     data_manager.save_checks(all_checks)
-    logging.info(f"Scheduler: Task for check_id: {check_id} ('{check_config.get('name', '')}') completed. Status: {status}. Next approximate run based on interval: {check_config.get('next_check_at', 'N/A')}")
+    logging.info(f"Scheduler: Task for check_id: {check_id} ('{check_config.get('name', '')}') completed. Status: {status}. Next run: {check_config.get('next_check_at', 'N/A')}")
 
     # Отправка уведомления, если статус 'changed' или 'error' (будет добавлено позже)
     # if status == "changed" or status == "error":
@@ -90,55 +94,47 @@ def init_scheduler(app_checks):
     """
     if scheduler.running:
         logging.info("Scheduler is already running. Shutting down to re-initialize.")
-        scheduler.shutdown(wait=False) # wait=False чтобы не блокировать, если задачи долгие
-        # Даем немного времени на завершение, если необходимо
-        # import time
-        # time.sleep(1) 
-        # Создаем новый экземпляр, чтобы избежать проблем с повторной инициализацией
-        # globals()['scheduler'] = BackgroundScheduler(timezone="UTC")
-
-    # Очищаем все существующие задачи, если shutdown не очистил (на всякий случай)
-    # или если мы не создаем новый экземпляр
-    # for job in scheduler.get_jobs():
-    #     job.remove()
-    # logging.info("Scheduler: All existing jobs removed.")
+        scheduler.shutdown(wait=False)
         
     # Пересоздаем планировщик для чистоты состояния
-    # (более надежно, чем пытаться очистить существующий и перезапустить)
     globals()['scheduler'] = BackgroundScheduler(timezone="UTC")
     logging.info("Scheduler: Initializing...")
     
+    active_checks_count = 0
     for check_config in app_checks:
-        if check_config.get("status") != "paused": # Не добавляем в планировщик неактивные или удаленные
+        # ВИПРАВЛЕНО: Перевіряємо статус "active" замість != "paused"
+        if check_config.get("status") == "active":
             try:
-                interval_minutes = int(check_config.get('interval', 5)) # По умолчанию 5 минут
+                interval_minutes = int(check_config.get('interval', 5))
                 if interval_minutes <= 0:
                     logging.warning(f"Scheduler: Invalid interval {interval_minutes} for check '{check_config.get('name', check_config['id'])}'. Setting to 5 minutes.")
                     interval_minutes = 5
                 
+                # ВИПРАВЛЕНО: Додаємо check_id як аргумент функції
                 scheduler.add_job(
                     func=scheduled_check_task,
                     trigger='interval',
                     minutes=interval_minutes,
+                    args=[check_config['id']],  # Передаємо check_id як аргумент
                     id=check_config['id'],
                     name=f"Check: {check_config.get('name', check_config['id'])}",
-                    replace_existing=True # Заменяет задачу, если она уже существует с таким id
+                    replace_existing=True
                 )
+                active_checks_count += 1
                 logging.info(f"Scheduler: Added job for check_id: {check_config['id']} ('{check_config.get('name', '')}'), Interval: {interval_minutes} minutes.")
             except Exception as e:
                 logging.error(f"Scheduler: Error adding job for check_id {check_config['id']}: {e}")
         else:
-            logging.info(f"Scheduler: Check '{check_config.get('name', check_config['id'])}' is paused. Not scheduling.")
-
+            logging.info(f"Scheduler: Check '{check_config.get('name', check_config['id'])}' has status '{check_config.get('status')}'. Not scheduling.")
 
     if not scheduler.running:
         try:
-            scheduler.start(paused=False) # paused=False чтобы задачи начали выполняться сразу
-            logging.info("Scheduler: Started successfully.")
+            scheduler.start(paused=False)
+            logging.info(f"Scheduler: Started successfully with {active_checks_count} active checks.")
         except Exception as e:
             logging.error(f"Scheduler: Failed to start. {e}")
     else:
-        logging.info("Scheduler: Already running (re-initialized or was running).")
+        logging.info(f"Scheduler: Already running (re-initialized with {active_checks_count} active checks).")
 
 def update_job(check_id, interval_minutes):
     """Обновляет интервал существующей задачи или добавляет новую, если ее нет."""
@@ -153,20 +149,20 @@ def update_job(check_id, interval_minutes):
             logging.info(f"Scheduler: Rescheduled job for check_id: {check_id} to {interval_minutes} minutes.")
         else:
             # Если задачи нет, нужно загрузить конфигурацию и добавить ее
-            # Это может произойти, если проверка была добавлена, когда планировщик не работал,
-            # или была удалена из планировщика по какой-то причине.
             all_checks = data_manager.load_checks()
             check_config = next((c for c in all_checks if c['id'] == check_id), None)
             if check_config and check_config.get("status") != "paused":
-                 scheduler.add_job(
+                # ВИПРАВЛЕНО: Додаємо check_id як аргумент функції
+                scheduler.add_job(
                     func=scheduled_check_task,
                     trigger='interval',
                     minutes=interval_minutes,
+                    args=[check_config['id']],  # Передаємо check_id як аргумент
                     id=check_config['id'],
                     name=f"Check: {check_config.get('name', check_config['id'])}",
                     replace_existing=True
                 )
-                 logging.info(f"Scheduler: Added new job for check_id: {check_id} with interval {interval_minutes} minutes (was not found).")
+                logging.info(f"Scheduler: Added new job for check_id: {check_id} with interval {interval_minutes} minutes (was not found).")
             elif check_config and check_config.get("status") == "paused":
                 logging.info(f"Scheduler: Check {check_id} is paused. Not adding/rescheduling job.")
             else:
@@ -227,7 +223,7 @@ def resume_job(check_id):
         logging.error(f"Scheduler: Error resuming job for check_id {check_id}: {e}")
         return False
 
-# Также убедимся, что планировщик корректно останавливается при завершении приложения
+# Также убедимся, что планировщик корректно останавлиется при завершении приложения
 import atexit
 atexit.register(lambda: scheduler.shutdown(wait=False) if scheduler.running else None)
 

@@ -1,20 +1,5 @@
 [
     {
-        "id": "76d4070a-2009-466f-8cfb-f5911fe79555",
-        "name": "timmy",
-        "url": "https://timmybooks.prom.ua/ua/p2599355441-kniga-bog-vsegda.html",
-        "selector": "span[data-qaid=\"product_price\"]",
-        "change_threshold": null,
-        "interval": 3,
-        "status": "active",
-        "created_at": "2025-05-22T15:19:12.839495Z",
-        "last_checked_at": "2025-05-22T20:53:19.175516Z",
-        "next_check_at": "2025-05-22T23:56:19.160176+03:00",
-        "last_result": "no_change",
-        "last_error_message": null,
-        "last_content_hash": "5c9b098a07ab1e4383baf56f608fa4fd"
-    },
-    {
         "id": "ee6ebf74-2fce-459c-a98a-69702cb16f72",
         "name": "7",
         "url": "https://timmybooks.prom.ua/ua/p2605397463-kniga-navykov-vysokoeffektivnyh.html",
@@ -23,10 +8,25 @@
         "interval": 3,
         "status": "active",
         "created_at": "2025-05-22T19:45:52.704925Z",
-        "last_checked_at": "2025-05-22T20:52:02.720881Z",
-        "next_check_at": "2025-05-22T23:55:02.705388+03:00",
+        "last_checked_at": "2025-05-24T15:29:02.527853+00:00",
+        "next_check_at": "2025-05-24T15:32:01.341330+00:00",
         "last_result": "no_change",
         "last_error_message": null,
-        "last_content_hash": null
+        "last_content_hash": "d123152aeb245cfcdd1d4fd3670e2a39"
+    },
+    {
+        "id": "a6223715-8dbd-408b-82d3-a4f5aa4c8e41",
+        "name": "7",
+        "url": "https://timmybooks.prom.ua/ua/p2605397463-kniga-navykov-vysokoeffektivnyh.html",
+        "selector": "span[data-qaid=\"product_price\"]",
+        "change_threshold": null,
+        "interval": 1,
+        "status": "active",
+        "created_at": "2025-05-24T08:55:51.111675+00:00",
+        "last_checked_at": "2025-05-24T15:35:41.653740+00:00",
+        "last_result": "no_change",
+        "last_content_hash": "d123152aeb245cfcdd1d4fd3670e2a39",
+        "next_check_at": "2025-05-24T15:36:40.692300+00:00",
+        "last_error_message": null
     }
 ]

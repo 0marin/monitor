@@ -38,12 +38,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
             try {
+                // ВИПРАВЛЕНО: Переконуємося, що використовується правильний API шлях
                 const response = await fetch('/api/checks', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data),
+                    body: JSON.stringify(formData)
                 });
 
                 if (response.ok) {
@@ -68,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Функция для загрузки и отображения списка проверок
         async function loadAndDisplayChecks() {
             try {
+                // ВИПРАВЛЕНО: Переконуємося, що використовується правильний API шлях
                 const response = await fetch('/api/checks');
                 if (!response.ok) {
                     monitorList.innerHTML = '<li class="monitor-item-error">Не вдалося завантажити список перевірок.</li>';
@@ -117,12 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (systemStatusDiv) {
         async function loadSystemStatus() {
             try {
+                // ВИПРАВЛЕНО: Переконуємося, що використовується правильний API шлях
                 const response = await fetch('/api/system-status');
-                 if (!response.ok) {
-                    systemStatusDiv.textContent = 'Не вдалося завантажити стан системи.';
-                    console.error('Failed to load system status:', response.statusText);
-                    return;
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
+                
                 const status = await response.json();
                 systemStatusDiv.innerHTML = `
                     <p>Статус планувальника: ${status.scheduler_status || 'N/A'}</p>
@@ -170,14 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('monitorSelector').textContent = check.selector || 'Вся сторінка';
                 document.getElementById('monitorThreshold').textContent = check.change_threshold !== null ? `${check.change_threshold}%` : 'N/A (використовується селектор або не задано)';
                 document.getElementById('monitorInterval').textContent = check.interval;
-                document.getElementById('monitorStatus').textContent = check.status; // TODO: Сделать более дружелюбным
+                document.getElementById('monitorStatus').textContent = check.status;
                 document.getElementById('lastCheckTime').textContent = check.last_checked_at ? new Date(check.last_checked_at).toLocaleString() : 'Ще не перевірялось';
                 document.getElementById('nextCheckTime').textContent = check.next_check_at ? new Date(check.next_check_at).toLocaleString() : 'Не заплановано';
-                document.getElementById('lastCheckResult').textContent = check.last_result || 'Немає даних'; // TODO: Сделать более дружелюбным
+                document.getElementById('lastCheckResult').textContent = check.last_result || 'Немає даних';
 
-                // TODO: Загрузка и отображение истории последних 20 проверок
-                const historyList = document.getElementById('checkHistoryList');
-                historyList.innerHTML = '<li>Історія перевірок буде реалізована пізніше.</li>';
+                // Історія вже відображається через server-side rendering, 
+                // тому не потрібно завантажувати її через JavaScript
+                console.log('Monitor details loaded successfully. History is rendered server-side.');
 
                 // TODO: Добавить обработчики для кнопок "Позачергова перевірка", "Активувати/Деактивувати", "Редагувати", "Видалити"
 
