@@ -126,6 +126,8 @@ def init_scheduler(app_checks):
     logging.info("Scheduler: Initializing...")
     
     active_checks_count = 0
+    updated_checks = []  # ДОДАНО: Для збереження оновлених даних
+    
     for check_config in app_checks:
         # ВИПРАВЛЕНО: Перевіряємо статус "active" замість != "paused"
         if check_config.get("status") == "active":
@@ -147,10 +149,39 @@ def init_scheduler(app_checks):
                 )
                 active_checks_count += 1
                 logging.info(f"Scheduler: Added job for check_id: {check_config['id']} ('{check_config.get('name', '')}'), Interval: {interval_minutes} minutes.")
+                
+                # ДОДАНО: Оновлюємо next_check_at після створення завдання
+                try:
+                    job = scheduler.get_job(check_config['id'])
+                    if job and job.next_run_time:
+                        next_run_local = job.next_run_time.astimezone()
+                        check_config['next_check_at'] = next_run_local.isoformat()
+                        logging.info(f"Set next_check_at for {check_config['id']}: {check_config['next_check_at']}")
+                    else:
+                        check_config['next_check_at'] = None
+                        logging.warning(f"Could not set next_check_at for {check_config['id']} - no job found")
+                except Exception as e:
+                    logging.warning(f"Error setting next_check_at for {check_config['id']}: {e}")
+                    check_config['next_check_at'] = None
+                    
             except Exception as e:
                 logging.error(f"Scheduler: Error adding job for check_id {check_config['id']}: {e}")
+                check_config['next_check_at'] = None
         else:
+            # ДОДАНО: Очищуємо next_check_at для неактивних перевірок
+            check_config['next_check_at'] = None
             logging.info(f"Scheduler: Check '{check_config.get('name', check_config['id'])}' has status '{check_config.get('status')}'. Not scheduling.")
+
+        # Додаємо оновлену конфігурацію до списку
+        updated_checks.append(check_config)
+
+    # ДОДАНО: Зберігаємо оновлені дані після ініціалізації планувальника
+    if updated_checks:
+        try:
+            data_manager.save_checks(updated_checks)
+            logging.info(f"Updated next_check_at times for {len(updated_checks)} checks after scheduler initialization")
+        except Exception as e:
+            logging.error(f"Error saving updated check times after scheduler init: {e}")
 
     if not scheduler.running:
         try:
@@ -330,7 +361,219 @@ def force_scheduler_check():
         logging.error(f"Error during forced scheduler check: {e}")
         return False
 
-# Также убедимся, что планировщик корректно останавлиется при завершении приложения
+def execute_all_active_checks():
+    """
+    Виконує всі активні перевірки одразу.
+    Корисно для початкового запуску або ручного оновлення всіх даних.
+    """
+    try:
+        all_checks = data_manager.load_checks()
+        active_checks = [check for check in all_checks if check.get("status") == "active"]
+        
+        if not active_checks:
+            logging.info("No active checks found for execution")
+            return 0
+        
+        executed_count = 0
+        
+        for check_config in active_checks:
+            try:
+                # Використовуємо існуючу функцію scheduled_check_task
+                scheduled_check_task(check_config['id'])
+                executed_count += 1
+                logging.info(f"Executed check: {check_config.get('name', check_config['id'])}")
+            except Exception as e:
+                logging.error(f"Error executing check {check_config['id']}: {e}")
+        
+        logging.info(f"Executed {executed_count}/{len(active_checks)} active checks")
+        return executed_count
+        
+    except Exception as e:
+        logging.error(f"Error during execute_all_active_checks: {e}")
+        return 0
+
+def get_checks_summary():
+    """
+    Повертає короткий звіт про стан всіх перевірок.
+    """
+    try:
+        all_checks = data_manager.load_checks()
+        
+        summary = {
+            "total_checks": len(all_checks),
+            "active_checks": len([c for c in all_checks if c.get("status") == "active"]),
+            "paused_checks": len([c for c in all_checks if c.get("status") == "paused"]),
+            "last_changed": [],
+            "recent_errors": []
+        }
+        
+        # Знаходимо останні зміни та помилки
+        for check in all_checks:
+            if check.get('last_result') == 'changed':
+                summary["last_changed"].append({
+                    "name": check.get('name', 'Unnamed'),
+                    "id": check['id'],
+                    "last_checked": check.get('last_checked_at')
+                })
+            elif check.get('last_result') == 'error':
+                summary["recent_errors"].append({
+                    "name": check.get('name', 'Unnamed'),
+                    "id": check['id'],
+                    "error": check.get('last_error_message', 'Unknown error'),
+                    "last_checked": check.get('last_checked_at')
+                })
+        
+        return summary
+        
+    except Exception as e:
+        logging.error(f"Error getting checks summary: {e}")
+        return {"error": str(e)}
+
+# Также убедимся, что планировщик корректно останавливается при завершении приложения
 import atexit
 atexit.register(lambda: scheduler.shutdown(wait=False) if scheduler.running else None)
+
+# Глобальна змінна для відстеження стану сну
+_app_sleeping = False
+
+def is_app_sleeping():
+    """Повертає True, якщо застосунок знаходиться в режимі сну."""
+    global _app_sleeping
+    return _app_sleeping
+
+def put_app_to_sleep():
+    """
+    Переводить застосунок в режим сну:
+    - Призупиняє планувальник
+    - Зберігає стан як "сплячий"
+    """
+    global _app_sleeping
+    
+    try:
+        if not scheduler.running:
+            logging.warning("Scheduler is not running, cannot put to sleep")
+            _app_sleeping = True
+            return True
+        
+        # Призупиняємо планувальник (не зупиняємо повністю)
+        scheduler.pause()
+        _app_sleeping = True
+        
+        # Отримуємо кількість активних завдань для логування
+        active_jobs = scheduler.get_jobs()
+        logging.info(f"Application put to sleep. Paused {len(active_jobs)} scheduled jobs.")
+        
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error putting app to sleep: {e}")
+        return False
+
+def wake_up_app():
+    """
+    Виводить застосунок з режиму сну:
+    - Відновлює планувальник
+    - Виконує всі активні перевірки одразу
+    - Повертає їх до звичайного режиму планування
+    """
+    global _app_sleeping
+    
+    try:
+        if not _app_sleeping:
+            logging.info("App is not sleeping, nothing to wake up")
+            return True
+        
+        # Відновлюємо планувальник
+        if scheduler.running:
+            scheduler.resume()
+            logging.info("Scheduler resumed from pause")
+        else:
+            # Якщо планувальник зупинений, перезапускаємо його
+            all_checks = data_manager.load_checks()
+            init_scheduler(all_checks)
+            logging.info("Scheduler was stopped, re-initialized with all checks")
+        
+        _app_sleeping = False
+        
+        # Виконуємо всі активні перевірки одразу після виходу з сну
+        try:
+            executed_count = execute_all_active_checks()
+            logging.info(f"Wake up: executed {executed_count} immediate checks")
+        except Exception as e:
+            logging.error(f"Error executing immediate checks on wake up: {e}")
+        
+        # Оновлюємо часи наступних перевірок
+        try:
+            update_next_check_times_after_wake_up()
+        except Exception as e:
+            logging.error(f"Error updating next check times after wake up: {e}")
+        
+        active_jobs = scheduler.get_jobs()
+        logging.info(f"Application woken up. Resumed {len(active_jobs)} scheduled jobs.")
+        
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error waking up app: {e}")
+        return False
+
+def update_next_check_times_after_wake_up():
+    """
+    Оновлює часи наступних перевірок після виходу з режиму сну.
+    """
+    try:
+        all_checks = data_manager.load_checks()
+        updated = False
+        
+        for check in all_checks:
+            if check.get('status') == 'active':
+                check_id = check['id']
+                try:
+                    job = scheduler.get_job(check_id)
+                    if job and job.next_run_time:
+                        next_run_local = job.next_run_time.astimezone()
+                        check['next_check_at'] = next_run_local.isoformat()
+                        updated = True
+                        logging.debug(f"Updated next_check_at for {check_id} after wake up: {check['next_check_at']}")
+                    else:
+                        check['next_check_at'] = None
+                        updated = True
+                        logging.warning(f"No job found for {check_id} after wake up")
+                except Exception as e:
+                    logging.warning(f"Error updating next_check_at for {check_id} after wake up: {e}")
+        
+        if updated:
+            data_manager.save_checks(all_checks)
+            logging.info("Next check times updated after wake up")
+        
+    except Exception as e:
+        logging.error(f"Error in update_next_check_times_after_wake_up: {e}")
+
+def get_sleep_status():
+    """
+    Повертає детальну інформацію про стан сну застосунку.
+    """
+    global _app_sleeping
+    
+    try:
+        active_jobs = scheduler.get_jobs() if scheduler.running else []
+        all_checks = data_manager.load_checks()
+        active_checks = [check for check in all_checks if check.get("status") == "active"]
+        
+        return {
+            "is_sleeping": _app_sleeping,
+            "scheduler_running": scheduler.running,
+            "scheduler_paused": _app_sleeping and scheduler.running,
+            "total_checks": len(all_checks),
+            "active_checks": len(active_checks),
+            "active_jobs": len(active_jobs),
+            "status_description": "Застосунок в режимі сну" if _app_sleeping else "Застосунок активний"
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting sleep status: {e}")
+        return {
+            "error": str(e),
+            "is_sleeping": _app_sleeping
+        }
 

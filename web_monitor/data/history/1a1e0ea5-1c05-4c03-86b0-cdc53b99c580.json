@@ -1,58 +1,142 @@
 [
     {
-        "timestamp": "2025-05-24T16:55:35.016172+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
-        "error_message": null
+        "timestamp": "2025-05-25T09:57:13.374665+00:00",
+        "status": "error",
+        "extracted_value": null,
+        "content_hash": null,
+        "error_message": "Request error for 'LV' (ID: 1a1e0ea5-1c05-4c03-86b0-cdc53b99c580): HTTPSConnectionPool(host='order.mandarake.co.jp', port=443): Read timed out. (read timeout=10)"
     },
     {
-        "timestamp": "2025-05-24T17:05:36.463470+00:00",
+        "timestamp": "2025-05-25T10:05:11.275109+00:00",
+        "status": "error",
+        "extracted_value": null,
+        "content_hash": null,
+        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
+    },
+    {
+        "timestamp": "2025-05-25T10:06:56.859018+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 1 items",
+        "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-24T17:15:36.297018+00:00",
+        "timestamp": "2025-05-25T10:13:26.273067+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-24T17:45:36.575355+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-24T17:55:36.933473+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-24T18:05:36.663304+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-24T18:20:52.919321+00:00",
-        "status": "changed",
         "extracted_value": "Search result: 1 items",
         "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-24T19:02:22.521247+00:00",
+        "timestamp": "2025-05-25T10:19:29.900957+00:00",
         "status": "no_change",
         "extracted_value": "Search result: 1 items",
         "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:29:28.929789+00:00",
+        "status": "changed",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:37:15.656851+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:42:01.186655+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:45:47.976722+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:56:12.167274+00:00",
+        "status": "error",
+        "extracted_value": null,
+        "content_hash": null,
+        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
+    },
+    {
+        "timestamp": "2025-05-25T10:56:17.644188+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T10:56:57.710114+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:00:51.094215+00:00",
+        "status": "error",
+        "extracted_value": null,
+        "content_hash": null,
+        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
+    },
+    {
+        "timestamp": "2025-05-25T11:01:05.286125+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:05:14.229224+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:05:41.446169+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:10:59.053632+00:00",
+        "status": "error",
+        "extracted_value": null,
+        "content_hash": null,
+        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?upToMinutes=360&dispCount=240&keyword=limited%20vintage&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
+    },
+    {
+        "timestamp": "2025-05-25T11:13:31.006222+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:16:27.987363+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-25T11:21:27.094103+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 6 items",
+        "content_hash": "7f3bbb8a81ac7b41ff805cf6eb954f69",
         "error_message": null
     }
 ]

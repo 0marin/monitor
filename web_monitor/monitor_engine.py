@@ -3,7 +3,7 @@ import hashlib
 from bs4 import BeautifulSoup
 import logging
 
-# Настройка логирования (если еще не настроено глобально)
+# Настройка логування (якщо ще не налаштовано глобально)
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_content_hash_from_element(element):
@@ -43,7 +43,15 @@ def perform_check(check_id, name, url, selector, last_hash):
 
     try:
         logging.info(f"Performing check for '{name}' (ID: {check_id}), URL: {url}, Selector: {selector}")
-        response = requests.get(url, headers=headers, timeout=10)
+        
+        # ВИПРАВЛЕНО: Збільшуємо timeout та додаємо більше параметрів
+        response = requests.get(
+            url, 
+            headers=headers, 
+            timeout=(10, 30),  # (connection timeout, read timeout) 
+            allow_redirects=True,
+            verify=True  # Перевіряємо SSL сертифікати
+        )
         response.raise_for_status() # Вызовет исключение для плохих ответов (4xx, 5xx)
         
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -52,7 +60,7 @@ def perform_check(check_id, name, url, selector, last_hash):
         if not selected_element:
             error_message = f"Element not found with selector: '{selector}'"
             logging.warning(f"{error_message} for '{name}' (ID: {check_id}) on URL {url}")
-            return status, current_hash, extracted_text, error_message # current_hash and extracted_text are None
+            return status, current_hash, extracted_text, error_message
 
         extracted_text, current_hash = get_content_hash_from_element(selected_element)
         
@@ -63,7 +71,7 @@ def perform_check(check_id, name, url, selector, last_hash):
         logging.info(f"  Last hash: '{last_hash}'")
         logging.info(f"  Hash comparison: current==last -> {current_hash == last_hash}")
 
-        if last_hash is None: # Первая проверка для этого элемента
+        if last_hash is None: # Перша перевірка для цього елемента
             status = "changed" # Считаем первой проверкой как изменение
             logging.info(f"First check for '{name}' (ID: {check_id}). Status: {status}. Hash: {current_hash}")
         elif current_hash == last_hash:
@@ -82,12 +90,54 @@ def perform_check(check_id, name, url, selector, last_hash):
         # error_message остается None, так как ошибок не было на этом этапе
         return status, current_hash, extracted_text, error_message
 
+    # ВИПРАВЛЕНО: Детальна обробка різних типів помилок мережі
+    except requests.exceptions.Timeout as e:
+        if "Read timed out" in str(e):
+            error_message = f"Сервер '{url}' не відповідає (timeout через {30}с). Можливо сайт перевантажений або недоступний."
+        elif "Connection timeout" in str(e):
+            error_message = f"Не вдалося підключитися до '{url}' (connection timeout через {10}с). Перевірте доступність сайту."
+        else:
+            error_message = f"Timeout при підключенні до '{url}': {str(e)}"
+        logging.warning(f"TIMEOUT ERROR for '{name}' (ID: {check_id}): {error_message}")
+        return status, None, None, error_message
+        
+    except requests.exceptions.ConnectionError as e:
+        error_message = f"Помилка з'єднання з '{url}': сервер недоступний або проблеми з мережею"
+        logging.error(f"CONNECTION ERROR for '{name}' (ID: {check_id}): {error_message} | Details: {str(e)}")
+        return status, None, None, error_message
+        
+    except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code if e.response else "Unknown"
+        if status_code == 404:
+            error_message = f"Сторінка не знайдена (404): '{url}'"
+        elif status_code == 403:
+            error_message = f"Доступ заборонено (403): '{url}' - можливо потрібна авторизація"
+        elif status_code == 500:
+            error_message = f"Помилка сервера (500): '{url}' - внутрішня помилка сайту"
+        elif status_code == 503:
+            error_message = f"Сервіс недоступний (503): '{url}' - сайт тимчасово недоступний"
+        else:
+            error_message = f"HTTP помилка {status_code}: '{url}'"
+        logging.error(f"HTTP ERROR for '{name}' (ID: {check_id}): {error_message}")
+        return status, None, None, error_message
+        
+    except requests.exceptions.SSLError as e:
+        error_message = f"Помилка SSL сертифікату для '{url}': сертифікат недійсний або застарілий"
+        logging.error(f"SSL ERROR for '{name}' (ID: {check_id}): {error_message} | Details: {str(e)}")
+        return status, None, None, error_message
+        
+    except requests.exceptions.TooManyRedirects as e:
+        error_message = f"Забагато перенаправлень для '{url}': можливо циклічні редиректи"
+        logging.error(f"REDIRECT ERROR for '{name}' (ID: {check_id}): {error_message}")
+        return status, None, None, error_message
+        
     except requests.exceptions.RequestException as e:
-        error_message = f"Request error for '{name}' (ID: {check_id}): {str(e)}"
-        logging.error(error_message)
-        return status, None, None, error_message # status is 'error'
+        error_message = f"Загальна помилка запиту до '{url}': {str(e)}"
+        logging.error(f"REQUEST ERROR for '{name}' (ID: {check_id}): {error_message}")
+        return status, None, None, error_message
+        
     except Exception as e:
-        error_message = f"Unexpected error for '{name}' (ID: {check_id}): {str(e)}"
-        logging.exception(error_message) # Используем logging.exception для вывода traceback
-        return status, None, None, error_message # status is 'error'
+        error_message = f"Неочікувана помилка для '{url}': {str(e)}"
+        logging.exception(f"UNEXPECTED ERROR for '{name}' (ID: {check_id}): {error_message}")
+        return status, None, None, error_message
 

@@ -3,39 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Моніторинг веб-сайтів</title>
+    <title>Мониторинг веб-сайтів - Web Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Fallback styles if CSS doesn't load */
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f8f9fa; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🔍 Web Monitor</h1>
+            <h1>🔍 Моніторинг веб-сайтів</h1>
             <div class="actions">
-                <a href="{{ url_for('add_check_page') }}" class="btn btn-add">✨ Додати перевірку</a>
-                <button class="btn btn-status" onclick="loadSystemStatus()">📊 Статус системи</button>
+                <a href="/add" class="btn btn-add">➕ Додати перевірку</a>
+                <button id="forceCheckAllBtn" class="btn btn-force">⚡ Перевірити всі</button>
+                <button id="sleepToggleBtn" class="btn btn-sleep">😴 Режим сну</button>
+                <button id="diagnosticsBtn" class="btn btn-diagnostics">🔧 Діагностика</button>
             </div>
         </header>
 
-        <div class="system-status" id="systemStatus" style="display: none;">
-            <h3>🖥️ Стан системи</h3>
-            <div id="statusContent"></div>
-            <!-- ДОДАНО: Кнопки діагностики -->
-            <div class="system-actions" style="margin-top: 15px;">
-                <button class="btn btn-action" onclick="loadSchedulerDiagnostics()">🔍 Діагностика планувальника</button>
-                <button class="btn btn-action" onclick="forceSchedulerCheck()">⚡ Примусова перевірка</button>
-            </div>
-        </div>
-
         <main>
-            <section>
-                <h2>📋 Активні перевірки</h2>
-                <div id="checksContainer">
-                    <div class="loading"></div> Завантаження перевірок...
+            <div id="messageContainer"></div>
+            
+            <div id="appStatusContainer" style="display: none; margin-bottom: 15px;">
+                <div id="sleepStatus" class="sleep-status">
+                    <span id="sleepStatusText">Завантаження статусу...</span>
                 </div>
-            </section>
+            </div>
+            
+            <div id="loadingContainer" class="loading">
+                Завантаження списку перевірок...
+            </div>
+
+            <div id="checksContainer" style="display: none;">
+                <h2>Список активних перевірок</h2>
+                <ul id="monitorList" class="monitor-list"></ul>
+            </div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <h3>📋 Поки що немає жодної перевірки</h3>
+                <p>Додайте першу перевірку, щоб почати моніторинг!</p>
+                <a href="/add" class="btn btn-add">➕ Додати першу перевірку</a>
+            </div>
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Модальне вікно діагностики -->
+    <div id="diagnosticsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🔧 Діагностика планувальника</h3>
+                <span id="closeDiagnostics" class="close">&times;</span>
+            </div>
+            <div id="diagnosticsContent">
+                <div class="loading">Завантаження діагностики...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Перевіряємо, чи завантажився CSS
+        window.addEventListener('load', function() {
+            const testElement = document.createElement('div');
+            testElement.className = 'btn';
+            document.body.appendChild(testElement);
+            const styles = window.getComputedStyle(testElement);
+            
+            if (styles.padding === '0px' || styles.borderRadius === '0px') {
+                console.warn('CSS не завантажився правильно');
+                // Можна додати альтернативні стилі або показати повідомлення
+            }
+            
+            document.body.removeChild(testElement);
+        });
+
+        let allChecks = [];
+        let appSleeping = false;
+
+        // Завантаження перевірок при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAppStatus();
+            loadChecks();
+        });
+
+        // Функція завантаження перевірок
+        async function loadChecks() {
+            try {
+                const response = await fetch('/api/checks');
+                const checks = await response.json();
+                
+                allChecks = checks;
+                displayChecks(checks);
+                
+                document.getElementById('loadingContainer').style.display = 'none';
+                
+                if (checks.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                } else {
+                    document.getElementById('checksContainer').style.display = 'block';
+                }
+                
+            } catch (error) {
+                showMessage('Помилка завантаження перевірок: ' + error.message, 'error');
+                document.getElementById('loadingContainer').style.display = 'none';
+            }
+        }
+
+        // Функція відображення перевірок
+        function displayChecks(checks) {
+            const monitorList = document.getElementById('monitorList');
+            monitorList.innerHTML = '';
+
+            checks.forEach(check => {
+                const listItem = document.createElement('li');
+                
+                const statusClass = getStatusClass(check);
+                const statusText = getStatusText(check);
+                
+                listItem.innerHTML = `
+                    <a href="/check/${check.id}" class="monitor-item">
+                        <div class="monitor-header">
+                            <span class="monitor-name">${escapeHtml(check.name || 'Без назви')}</span>
+                            <span class="monitor-status ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="monitor-details">
+                            <p class="monitor-url">🔗 ${escapeHtml(check.url)}</p>
+                            <p>🕐 Остання перевірка: ${formatDateTime(check.last_checked_at)}</p>
+                            <p>⏰ Наступна перевірка: ${formatDateTime(check.next_check_at)}</p>
+                            <p>🔍 Селектор: ${escapeHtml(check.selector || 'Вся сторінка')}</p>
+                            <p>⏱️ Інтервал: ${check.interval} хв.</p>
+                            ${check.last_error_message ? `<p style="color: #dc3545;">❌ Помилка: ${escapeHtml(check.last_error_message)}</p>` : ''}
+                        </div>
+                    </a>
+                `;
+                
+                monitorList.appendChild(listItem);
+            });
+        }
+
+        // Функція примусової перевірки всіх
+        document.getElementById('forceCheckAllBtn').addEventListener('click', async function() {
+            const btn = this;
+            const originalText = btn.textContent;
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Виконується...';
+            
+            try {
+                const response = await fetch('/api/force-check-all', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`✅ ${result.message}`, 'success');
+                    
+                    // Перезавантажуємо список через 2 секунди
+                    setTimeout(() => {
+                        loadChecks();
+                    }, 2000);
+                } else {
+                    showMessage(`❌ ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                showMessage('❌ Помилка з\'єднання: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // Функція діагностики
+        document.getElementById('diagnosticsBtn').addEventListener('click', async function() {
+            const modal = document.getElementById('diagnosticsModal');
+            const content = document.getElementById('diagnosticsContent');
+            
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loading">Завантаження діагностики...</div>';
+            
+            try {
+                const response = await fetch('/api/scheduler-diagnostics');
+                const diagnostics = await response.json();
+                
+                if (response.ok) {
+                    content.innerHTML = `
+                        <div style="margin-bottom: 15px;">
+                            <h4>📊 Статус планувальника: <span style="color: ${diagnostics.status === 'running' ? '#28a745' : '#dc3545'}">${diagnostics.status === 'running' ? 'Працює' : 'Зупинено'}</span></h4>
+                            <p><strong>Поточний час (UTC):</strong> ${diagnostics.current_time_utc}</p>
+                            <p><strong>Поточний час (локальний):</strong> ${diagnostics.current_time_local}</p>
+                            <p><strong>Активних завдань:</strong> ${diagnostics.jobs_count}</p>
+                        </div>
+                        
+                        ${diagnostics.jobs_count > 0 ? `
+                        <div>
+                            <h4>📋 Активні завдання:</h4>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                ${diagnostics.jobs.map(job => `
+                                    <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid ${job.is_overdue ? '#dc3545' : '#28a745'};">
+                                        <strong>${escapeHtml(job.name || job.id)}</strong><br>
+                                        <small>ID: ${job.id}</small><br>
+                                        <small>Наступний запуск: ${job.next_run_local || 'Не заплановано'}</small><br>
+                                        <small>Тригер: ${job.trigger}</small>
+                                        ${job.is_overdue ? '<br><span style="color: #dc3545; font-weight: bold;">⚠️ Прострочено!</span>' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : '<p>Немає активних завдань.</p>'}
+                    `;
+                } else {
+                    content.innerHTML = `<div style="color: #dc3545;">❌ Помилка діагностики: ${diagnostics.error}</div>`;
+                }
+                
+            } catch (error) {
+                content.innerHTML = `<div style="color: #dc3545;">❌ Помилка з'єднання: ${error.message}</div>`;
+            }
+        });
+
+        // Закриття модального вікна діагностики
+        document.getElementById('closeDiagnostics').addEventListener('click', function() {
+            document.getElementById('diagnosticsModal').style.display = 'none';
+        });
+
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('diagnosticsModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Функція завантаження статусу програми
+        async function loadAppStatus() {
+            try {
+                const response = await fetch('/api/app-status');
+                const status = await response.json();
+                
+                appSleeping = status.is_sleeping;
+                updateSleepButton();
+                updateSleepStatusDisplay(status);
+                
+            } catch (error) {
+                console.error('Error loading app status:', error);
+            }
+        }
+
+        // Оновлення кнопки режиму сну
+        function updateSleepButton() {
+            const btn = document.getElementById('sleepToggleBtn');
+            if (appSleeping) {
+                btn.textContent = '🌅 Вивести з сну';
+                btn.className = 'btn btn-wake';
+                btn.title = 'Вивести застосунок з режиму сну та відновити всі перевірки';
+            } else {
+                btn.textContent = '😴 Режим сну';
+                btn.className = 'btn btn-sleep';
+                btn.title = 'Перевести застосунок в режим сну (призупинити всі перевірки)';
+            }
+        }
+
+        // Оновлення відображення статусу сну
+        function updateSleepStatusDisplay(status) {
+            const container = document.getElementById('appStatusContainer');
+            const statusText = document.getElementById('sleepStatusText');
+            
+            if (status.is_sleeping) {
+                container.style.display = 'block';
+                statusText.innerHTML = `
+                    <strong>😴 Режим сну активний</strong> - 
+                    Всі перевірки призупинено (${status.active_checks || 0} активних перевірок чекають відновлення)
+                `;
+                container.className = 'sleep-status sleeping';
+            } else {
+                if ((status.active_checks || 0) > 0) {
+                    container.style.display = 'block';
+                    statusText.innerHTML = `
+                        <strong>🟢 Застосунок активний</strong> - 
+                        Виконується ${status.active_jobs_count || 0} завдань з ${status.active_checks || 0} активних перевірок
+                    `;
+                    container.className = 'sleep-status active';
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+        }
+
+        // Перемикання режиму сну
+        document.getElementById('sleepToggleBtn').addEventListener('click', async function() {
+            const btn = this;
+            const originalText = btn.textContent;
+            
+            btn.disabled = true;
+            btn.textContent = appSleeping ? '⏳ Виводимо з сну...' : '⏳ Засинаємо...';
+            
+            try {
+                const response = await fetch('/api/app-sleep-toggle', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    appSleeping = result.new_state === 'sleeping';
+                    updateSleepButton();
+                    showMessage(`✅ ${result.message}`, 'success');
+                    
+                    // Оновлюємо статус та список перевірок
+                    setTimeout(() => {
+                        loadAppStatus();
+                        loadChecks();
+                    }, 1000);
+                } else {
+                    showMessage(`❌ ${result.error || 'Помилка зміни режиму'}`, 'error');
+                }
+                
+            } catch (error) {
+                showMessage('❌ Помилка з\'єднання: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                if (!btn.textContent.includes('⏳')) {
+                    btn.textContent = originalText;
+                }
+            }
+        });
+
+        // Допоміжні функції
+        function getStatusClass(check) {
+            if (check.status === 'paused') return 'status-paused';
+            if (check.last_result === 'error') return 'status-error';
+            if (check.last_result === 'changed') return 'status-changed';
+            if (check.last_result === 'no_change') return 'status-no-change';
+            return 'status-active';
+        }
+
+        function getStatusText(check) {
+            if (check.status === 'paused') return '⏸️ Призупинено';
+            if (check.last_result === 'error') return '❌ Помилка';
+            if (check.last_result === 'changed') return '🔄 Зміни';
+            if (check.last_result === 'no_change') return '✅ Без змін';
+            return '🟢 Активна';
+        }
+
+        function formatDateTime(isoString) {
+            if (!isoString) return 'Ніколи';
+            
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleString('uk-UA', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return 'Невідомо';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(messageDiv);
+            
+            // Автоматично приховати через 5 секунд
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+    </script>
 </body>
 </html>

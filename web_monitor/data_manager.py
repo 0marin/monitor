@@ -143,119 +143,161 @@ def delete_check_history(check_id):
         logging.info(f"History file for check_id {check_id} does not exist: {filepath}")
         return True  # Вважаємо успіхом, якщо файлу не було
 
-def sync_check_with_latest_history(check_id):
-    """
-    Синхронізує основні дані перевірки з найсвіжішим записом в історії.
-    Використовується для виправлення розбіжностей.
-    """
-    history = load_check_history(check_id)
-    if not history:
-        logging.info(f"No history found for check {check_id}, nothing to sync")
-        return False
-    
-    # Сортуємо історію за часом (найновіші спочатку)
-    history.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-    latest_entry = history[0]
-    
-    # Завантажуємо всі перевірки
-    all_checks = load_checks()
-    check_config = None
-    
-    for i, check in enumerate(all_checks):
-        if check['id'] == check_id:
-            check_config = check
-            break
-    
-    if not check_config:
-        logging.error(f"Check with ID {check_id} not found for sync")
-        return False
-    
-    # Оновлюємо основні дані з історії
-    old_time = check_config.get('last_checked_at')
-    old_result = check_config.get('last_result')
-    
-    check_config['last_checked_at'] = latest_entry.get('timestamp')
-    check_config['last_result'] = latest_entry.get('status')
-    
-    if latest_entry.get('content_hash'):
-        check_config['last_content_hash'] = latest_entry.get('content_hash')
-    
-    if latest_entry.get('error_message'):
-        check_config['last_error_message'] = latest_entry.get('error_message')
-    else:
-        check_config['last_error_message'] = None
-    
-    # Зберігаємо оновлені дані
-    save_checks(all_checks)
-    
-    logging.info(f"Synced check {check_id}: time '{old_time}' -> '{latest_entry.get('timestamp')}', result '{old_result}' -> '{latest_entry.get('status')}'")
-    return True
-
 def debug_check_data(check_id):
     """
     Діагностична функція для перевірки даних конкретної перевірки.
     """
-    logging.info(f"=== DEBUG CHECK DATA for {check_id} ===")
-    
-    # Завантажуємо основні дані
-    check_config = get_check_by_id(check_id)
-    if check_config:
-        logging.info(f"Main config:")
-        logging.info(f"  last_checked_at: {check_config.get('last_checked_at')}")
-        logging.info(f"  last_result: {check_config.get('last_result')}")
-        logging.info(f"  last_content_hash: {check_config.get('last_content_hash')}")
-    else:
-        logging.info(f"Check config not found!")
-        return
-    
-    # Завантажуємо історію
-    history = load_check_history(check_id)
-    logging.info(f"History entries: {len(history)}")
-    
-    if history:
-        # Показуємо останні 3 записи
-        sorted_history = sorted(history, key=lambda x: x.get('timestamp', ''), reverse=True)
-        for i, entry in enumerate(sorted_history[:3]):
-            logging.info(f"  [{i}] {entry.get('timestamp')} | {entry.get('status')} | hash: {entry.get('content_hash')} | text: '{entry.get('extracted_value', '')[:50]}'")
-    
-    logging.info("=== END DEBUG ===")
+    try:
+        logging.info(f"=== DEBUG CHECK DATA for {check_id} ===")
+        
+        # Завантажуємо основні дані
+        check_config = get_check_by_id(check_id)
+        if check_config:
+            logging.info(f"Main config found:")
+            logging.info(f"  last_checked_at: {check_config.get('last_checked_at')}")
+            logging.info(f"  last_result: {check_config.get('last_result')}")
+            logging.info(f"  last_content_hash: {check_config.get('last_content_hash')}")
+            logging.info(f"  status: {check_config.get('status')}")
+            logging.info(f"  url: {check_config.get('url')}")
+        else:
+            logging.warning(f"Check config not found for {check_id}!")
+            return
+        
+        # Завантажуємо історію
+        try:
+            history = load_check_history(check_id)
+            logging.info(f"History entries: {len(history)}")
+            
+            if history:
+                # Показуємо останні 3 записи
+                sorted_history = sorted(history, key=lambda x: x.get('timestamp', ''), reverse=True)
+                for i, entry in enumerate(sorted_history[:3]):
+                    timestamp = entry.get('timestamp', 'No timestamp')
+                    status = entry.get('status', 'No status')
+                    content_hash = entry.get('content_hash', 'No hash')
+                    extracted_value = entry.get('extracted_value', '')
+                    text_preview = extracted_value[:50] if extracted_value else 'No content'
+                    
+                    logging.info(f"  [{i}] {timestamp} | {status} | hash: {content_hash} | text: '{text_preview}'")
+            else:
+                logging.info("  No history entries found")
+                
+        except Exception as e:
+            logging.error(f"Error loading history for debug {check_id}: {e}")
+        
+        logging.info("=== END DEBUG ===")
+        
+    except Exception as e:
+        logging.error(f"Error in debug_check_data for {check_id}: {e}")
+        raise
 
 def clean_duplicate_history_entries(check_id):
     """
     Видаляє дублікати з історії перевірок на основі timestamp та content_hash.
     """
-    history = load_check_history(check_id)
-    if len(history) <= 1:
-        return
-    
-    # Створюємо множину для відстеження унікальних комбінацій
-    seen = set()
-    cleaned_history = []
-    
-    for entry in history:
-        timestamp = entry.get('timestamp')
-        content_hash = entry.get('content_hash')
-        key = (timestamp, content_hash)
+    try:
+        history = load_check_history(check_id)
+        if len(history) <= 1:
+            logging.info(f"No duplicates to clean for {check_id} - only {len(history)} entries")
+            return
         
-        if key not in seen:
-            seen.add(key)
-            cleaned_history.append(entry)
+        # Створюємо множину для відстеження унікальних комбінацій
+        seen = set()
+        cleaned_history = []
+        removed_count = 0
+        
+        for entry in history:
+            timestamp = entry.get('timestamp', '')
+            content_hash = entry.get('content_hash', '')
+            key = (timestamp, content_hash)
+            
+            if key not in seen:
+                seen.add(key)
+                cleaned_history.append(entry)
+            else:
+                removed_count += 1
+                logging.info(f"Removing duplicate entry: {timestamp} with hash {content_hash}")
+        
+        if removed_count > 0:
+            logging.info(f"Cleaned history for {check_id}: {len(history)} -> {len(cleaned_history)} entries (removed {removed_count} duplicates)")
+            
+            # Зберігаємо очищену історію
+            filepath = get_history_filepath(check_id)
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(cleaned_history, f, indent=4, ensure_ascii=False, default=str)
+                    f.flush()
+                    os.fsync(f.fileno())
+                logging.info(f"Saved cleaned history for {check_id}")
+            except IOError as e:
+                logging.error(f"Error saving cleaned history for {check_id}: {e}")
+                raise
         else:
-            logging.info(f"Removing duplicate entry: {timestamp} with hash {content_hash}")
-    
-    if len(cleaned_history) != len(history):
-        logging.info(f"Cleaned history for {check_id}: {len(history)} -> {len(cleaned_history)} entries")
+            logging.info(f"No duplicates found in history for {check_id}")
+            
+    except Exception as e:
+        logging.error(f"Error in clean_duplicate_history_entries for {check_id}: {e}")
+        raise
+
+def sync_check_with_latest_history(check_id):
+    """
+    Синхронізує основні дані перевірки з найсвіжішим записом в історії.
+    """
+    try:
+        history = load_check_history(check_id)
+        if not history:
+            logging.info(f"No history found for check {check_id}, nothing to sync")
+            return False
         
-        # Зберігаємо очищену історію
-        filepath = get_history_filepath(check_id)
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(cleaned_history, f, indent=4, ensure_ascii=False, default=str)
-                f.flush()
-                os.fsync(f.fileno())
-            logging.info(f"Saved cleaned history for {check_id}")
-        except IOError as e:
-            logging.error(f"Error saving cleaned history for {check_id}: {e}")
+        # Сортуємо історію за часом (найновіші спочатку)
+        history.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        latest_entry = history[0]
+        
+        # Завантажуємо всі перевірки
+        all_checks = load_checks()
+        check_config = None
+        check_index = -1
+        
+        for i, check in enumerate(all_checks):
+            if check['id'] == check_id:
+                check_config = check
+                check_index = i
+                break
+        
+        if not check_config:
+            logging.error(f"Check with ID {check_id} not found for sync")
+            return False
+        
+        # Оновлюємо основні дані з історії
+        old_time = check_config.get('last_checked_at')
+        old_result = check_config.get('last_result')
+        old_hash = check_config.get('last_content_hash')
+        
+        check_config['last_checked_at'] = latest_entry.get('timestamp')
+        check_config['last_result'] = latest_entry.get('status')
+        
+        if latest_entry.get('content_hash'):
+            check_config['last_content_hash'] = latest_entry.get('content_hash')
+        
+        if latest_entry.get('error_message'):
+            check_config['last_error_message'] = latest_entry.get('error_message')
+        else:
+            check_config['last_error_message'] = None
+        
+        # Зберігаємо оновлені дані
+        all_checks[check_index] = check_config
+        save_checks(all_checks)
+        
+        logging.info(f"Synced check {check_id}:")
+        logging.info(f"  time: '{old_time}' -> '{latest_entry.get('timestamp')}'")
+        logging.info(f"  result: '{old_result}' -> '{latest_entry.get('status')}'")
+        logging.info(f"  hash: '{old_hash}' -> '{latest_entry.get('content_hash')}'")
+        
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error in sync_check_with_latest_history for {check_id}: {e}")
+        raise
 
 def get_current_content(check_id):
     """

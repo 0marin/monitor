@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Додати перевірку - Web Monitor</title>
+    <title>Редагувати перевірку - Web Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Додати нову перевірку</h1>
+        <h1>Редагувати перевірку</h1>
         
-        <form id="addCheckForm">
+        <form id="editCheckForm">
             <div class="form-group">
                 <label for="name">Назва перевірки:</label>
-                <input type="text" id="name" name="name" placeholder="Наприклад: Mandarake Limited Vintage">
+                <input type="text" id="name" name="name" value="{{ check.name or '' }}">
                 <div class="hint">Дайте зрозумілу назву для перевірки</div>
             </div>
 
             <div class="form-group">
                 <label for="url">URL сайту:</label>
-                <input type="url" id="url" name="url" required placeholder="https://example.com">
-                <div class="hint">Введіть повний URL сайту для моніторингу</div>
+                <input type="url" id="url" name="url" value="{{ check.url }}" required>
+                <div class="hint">URL сайту для моніторингу</div>
             </div>
 
             <div class="form-group">
                 <label for="selector">CSS-селектор:</label>
                 <div class="selector-group">
                     <div class="selector-input">
-                        <input type="text" id="selector" name="selector" placeholder="div.count, .price, h1">
+                        <input type="text" id="selector" name="selector" value="{{ check.selector or '' }}" placeholder="div.count, .price, h1">
                         <div class="hint">CSS-селектор елемента для моніторингу (залиште порожнім для всієї сторінки)</div>
                     </div>
                     <button type="button" class="test-selector-btn" id="testSelectorBtn">
@@ -38,13 +38,22 @@
 
             <div class="form-group">
                 <label for="interval">Інтервал перевірки (хвилини):</label>
-                <input type="number" id="interval" name="interval" min="1" value="15" required>
+                <input type="number" id="interval" name="interval" min="1" value="{{ check.interval }}" required>
                 <div class="hint">Як часто перевіряти зміни (мінімум 1 хвилина)</div>
             </div>
 
+            <div class="form-group">
+                <label for="status">Статус:</label>
+                <select id="status" name="status">
+                    <option value="active" {% if check.status == 'active' %}selected{% endif %}>Активна</option>
+                    <option value="paused" {% if check.status == 'paused' %}selected{% endif %}>Призупинена</option>
+                </select>
+                <div class="hint">Стан перевірки</div>
+            </div>
+
             <div class="buttons">
-                <button type="submit" class="btn btn-primary">Додати перевірку</button>
-                <a href="/" class="btn btn-secondary">Скасувати</a>
+                <button type="submit" class="btn btn-primary">Зберегти зміни</button>
+                <a href="/check/{{ check.id }}" class="btn btn-secondary">Скасувати</a>
             </div>
         </form>
     </div>
@@ -64,7 +73,7 @@
 
     <script>
         // Отримуємо елементи
-        const form = document.getElementById('addCheckForm');
+        const form = document.getElementById('editCheckForm');
         const testBtn = document.getElementById('testSelectorBtn');
         const modal = document.getElementById('testModal');
         const closeModal = document.getElementById('closeModal');
@@ -72,7 +81,7 @@
         const urlInput = document.getElementById('url');
         const selectorInput = document.getElementById('selector');
 
-        // Обробник тестування селектора
+        // Обробник тестування селектора (такий же як у add_check.html)
         testBtn.addEventListener('click', async function() {
             const url = urlInput.value.trim();
             const selector = selectorInput.value.trim();
@@ -89,7 +98,6 @@
                 return;
             }
 
-            // Показуємо модальне вікно з індикатором завантаження
             modalBody.innerHTML = '<div class="loading">Тестування селектора...</div>';
             modal.style.display = 'block';
             testBtn.disabled = true;
@@ -155,12 +163,13 @@
                 name: formData.get('name'),
                 url: formData.get('url'),
                 selector: formData.get('selector'),
-                interval: parseInt(formData.get('interval'))
+                interval: parseInt(formData.get('interval')),
+                status: formData.get('status')
             };
 
             try {
-                const response = await fetch('/api/checks', {
-                    method: 'POST',
+                const response = await fetch('/api/checks/{{ check.id }}', {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -170,8 +179,8 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert('Перевірку успішно додано!');
-                    window.location.href = '/';
+                    alert('Зміни успішно збережено!');
+                    window.location.href = '/check/{{ check.id }}';
                 } else {
                     alert('Помилка: ' + (result.error || 'Невідома помилка'));
                 }
