@@ -3,301 +3,325 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мониторинг веб-сайтів - Web Monitor</title>
+    <title>Моніторинг веб-сайтів</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Fallback styles if CSS doesn't load */
-        body { 
-            font-family: Arial, sans-serif; 
-            background-color: #f8f9fa; 
-            margin: 0; 
-            padding: 20px; 
+        /* Стилі для прогрес-бару */
+        .startup-progress {
+            display: none;
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            position: relative;
         }
-        .container { 
-            max-width: 800px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #2196f3;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            font-weight: bold;
+            color: #1976d2;
+        }
+        
+        .progress-numbers {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        /* Анімація для оновлення карток */
+        .monitor-item.updating {
+            background-color: #fff3cd !important;
+            border-left: 4px solid #ffc107;
+            transform: scale(1.02);
+            transition: all 0.3s ease;
+        }
+        
+        .monitor-item.updated {
+            background-color: #d4edda !important;
+            border-left: 4px solid #28a745;
+            animation: updatedPulse 1s ease-out;
+        }
+        
+        @keyframes updatedPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Живі оновлення */
+        .live-update {
+            color: #28a745;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🔍 Моніторинг веб-сайтів</h1>
-            <div class="actions">
-                <a href="/add" class="btn btn-add">➕ Додати перевірку</a>
-                <button id="forceCheckAllBtn" class="btn btn-force">⚡ Перевірити всі</button>
-                <button id="sleepToggleBtn" class="btn btn-sleep">😴 Режим сну</button>
-                <button id="diagnosticsBtn" class="btn btn-diagnostics">🔧 Діагностика</button>
+        <!-- Прогрес-бар для початкових перевірок -->
+        <div id="startupProgressContainer" class="startup-progress">
+            <div id="startupProgressText" class="progress-text">🔄 Завантаження...</div>
+            <div class="progress-bar">
+                <div id="startupProgressBar" class="progress-fill"></div>
+            </div>
+            <div id="startupProgressNumbers" class="progress-numbers"></div>
+        </div>
+
+        <!-- Банер статусу сну -->
+        <div id="sleepStatusBanner" class="sleep-status-banner" style="display: none;">
+            <div class="sleep-status-content">
+                <span class="sleep-icon">😴</span>
+                <span class="sleep-text">Застосунок в режимі сну. Всі перевірки призупинено.</span>
+            </div>
+        </div>
+
+        <header class="main-header">
+            <h1>Моніторинг веб-сайтів</h1>
+            <div class="header-actions">
+                <button id="sleepToggleBtn" class="btn btn-sleep">💤 Режим сну</button>
+                <a href="/add" class="btn btn-primary">+ Додати перевірку</a>
+                <button id="refreshBtn" class="btn btn-secondary">🔄 Оновити</button>
+                <button id="forceCheckAllBtn" class="btn btn-action">⚡ Перевірити всі</button>
             </div>
         </header>
 
         <main>
             <div id="messageContainer"></div>
-            
-            <div id="appStatusContainer" style="display: none; margin-bottom: 15px;">
-                <div id="sleepStatus" class="sleep-status">
-                    <span id="sleepStatusText">Завантаження статусу...</span>
-                </div>
-            </div>
-            
-            <div id="loadingContainer" class="loading">
-                Завантаження списку перевірок...
-            </div>
 
-            <div id="checksContainer" style="display: none;">
-                <h2>Список активних перевірок</h2>
-                <ul id="monitorList" class="monitor-list"></ul>
-            </div>
-
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <h3>📋 Поки що немає жодної перевірки</h3>
-                <p>Додайте першу перевірку, щоб почати моніторинг!</p>
-                <a href="/add" class="btn btn-add">➕ Додати першу перевірку</a>
-            </div>
+            <section class="checks-section">
+                <h2>Активні перевірки 
+                    <span id="liveUpdateIndicator" class="live-update" style="display: none;">● LIVE</span>
+                </h2>
+                <ul id="checksList" class="monitor-list">
+                    <li class="loading-message">
+                        <div class="loading-content">
+                            <h3>🔄 Завантаження перевірок...</h3>
+                            <p>Зачекайте, будь ласка</p>
+                        </div>
+                    </li>
+                </ul>
+            </section>
         </main>
     </div>
 
-    <!-- Модальне вікно діагностики -->
-    <div id="diagnosticsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">🔧 Діагностика планувальника</h3>
-                <span id="closeDiagnostics" class="close">&times;</span>
-            </div>
-            <div id="diagnosticsContent">
-                <div class="loading">Завантаження діагностики...</div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // Перевіряємо, чи завантажився CSS
-        window.addEventListener('load', function() {
-            const testElement = document.createElement('div');
-            testElement.className = 'btn';
-            document.body.appendChild(testElement);
-            const styles = window.getComputedStyle(testElement);
-            
-            if (styles.padding === '0px' || styles.borderRadius === '0px') {
-                console.warn('CSS не завантажився правильно');
-                // Можна додати альтернативні стилі або показати повідомлення
-            }
-            
-            document.body.removeChild(testElement);
-        });
-
-        let allChecks = [];
         let appSleeping = false;
+        let startupCheckInterval = null;
+        let liveUpdateInterval = null;
+        let isInitialLoad = true;
 
-        // Завантаження перевірок при завантаженні сторінки
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAppStatus();
-            loadChecks();
-        });
-
-        // Функція завантаження перевірок
-        async function loadChecks() {
-            try {
-                const response = await fetch('/api/checks');
-                const checks = await response.json();
-                
-                allChecks = checks;
-                displayChecks(checks);
-                
-                document.getElementById('loadingContainer').style.display = 'none';
-                
-                if (checks.length === 0) {
-                    document.getElementById('emptyState').style.display = 'block';
-                } else {
-                    document.getElementById('checksContainer').style.display = 'block';
-                }
-                
-            } catch (error) {
-                showMessage('Помилка завантаження перевірок: ' + error.message, 'error');
-                document.getElementById('loadingContainer').style.display = 'none';
+        // Показати індикатор живих оновлень
+        function showLiveIndicator() {
+            const indicator = document.getElementById('liveUpdateIndicator');
+            if (indicator) {
+                indicator.style.display = 'inline';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 3000);
             }
         }
 
-        // Функція відображення перевірок
-        function displayChecks(checks) {
-            const monitorList = document.getElementById('monitorList');
-            monitorList.innerHTML = '';
-
-            checks.forEach(check => {
-                const listItem = document.createElement('li');
-                
-                const statusClass = getStatusClass(check);
-                const statusText = getStatusText(check);
-                
-                listItem.innerHTML = `
-                    <a href="/check/${check.id}" class="monitor-item">
-                        <div class="monitor-header">
-                            <span class="monitor-name">${escapeHtml(check.name || 'Без назви')}</span>
-                            <span class="monitor-status ${statusClass}">${statusText}</span>
-                        </div>
-                        <div class="monitor-details">
-                            <p class="monitor-url">🔗 ${escapeHtml(check.url)}</p>
-                            <p>🕐 Остання перевірка: ${formatDateTime(check.last_checked_at)}</p>
-                            <p>⏰ Наступна перевірка: ${formatDateTime(check.next_check_at)}</p>
-                            <p>🔍 Селектор: ${escapeHtml(check.selector || 'Вся сторінка')}</p>
-                            <p>⏱️ Інтервал: ${check.interval} хв.</p>
-                            ${check.last_error_message ? `<p style="color: #dc3545;">❌ Помилка: ${escapeHtml(check.last_error_message)}</p>` : ''}
-                        </div>
-                    </a>
-                `;
-                
-                monitorList.appendChild(listItem);
-            });
+        // Функція для показу повідомлень
+        function showMessage(text, type = 'info') {
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = text;
+            
+            container.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
         }
 
-        // Функція примусової перевірки всіх
-        document.getElementById('forceCheckAllBtn').addEventListener('click', async function() {
-            const btn = this;
-            const originalText = btn.textContent;
-            
-            btn.disabled = true;
-            btn.textContent = '⏳ Виконується...';
+        // Функція завантаження перевірок з живими оновленнями
+        async function loadChecks() {
+            console.log('🔄 Loading checks...');
             
             try {
-                const response = await fetch('/api/force-check-all', {
-                    method: 'POST'
+                const response = await fetch('/api/checks', {
+                    headers: { 'Accept': 'application/json' }
                 });
                 
-                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 
-                if (response.ok) {
-                    showMessage(`✅ ${result.message}`, 'success');
-                    
-                    // Перезавантажуємо список через 2 секунди
-                    setTimeout(() => {
-                        loadChecks();
-                    }, 2000);
-                } else {
-                    showMessage(`❌ ${result.error}`, 'error');
+                const checks = await response.json();
+                console.log('📊 Loaded checks:', checks.length);
+                
+                displayChecks(checks);
+                
+                if (!isInitialLoad) {
+                    showLiveIndicator();
                 }
                 
             } catch (error) {
-                showMessage('❌ Помилка з\'єднання: ' + error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }
-        });
-
-        // Функція діагностики
-        document.getElementById('diagnosticsBtn').addEventListener('click', async function() {
-            const modal = document.getElementById('diagnosticsModal');
-            const content = document.getElementById('diagnosticsContent');
-            
-            modal.style.display = 'block';
-            content.innerHTML = '<div class="loading">Завантаження діагностики...</div>';
-            
-            try {
-                const response = await fetch('/api/scheduler-diagnostics');
-                const diagnostics = await response.json();
-                
-                if (response.ok) {
-                    content.innerHTML = `
-                        <div style="margin-bottom: 15px;">
-                            <h4>📊 Статус планувальника: <span style="color: ${diagnostics.status === 'running' ? '#28a745' : '#dc3545'}">${diagnostics.status === 'running' ? 'Працює' : 'Зупинено'}</span></h4>
-                            <p><strong>Поточний час (UTC):</strong> ${diagnostics.current_time_utc}</p>
-                            <p><strong>Поточний час (локальний):</strong> ${diagnostics.current_time_local}</p>
-                            <p><strong>Активних завдань:</strong> ${diagnostics.jobs_count}</p>
-                        </div>
-                        
-                        ${diagnostics.jobs_count > 0 ? `
-                        <div>
-                            <h4>📋 Активні завдання:</h4>
-                            <div style="max-height: 300px; overflow-y: auto;">
-                                ${diagnostics.jobs.map(job => `
-                                    <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid ${job.is_overdue ? '#dc3545' : '#28a745'};">
-                                        <strong>${escapeHtml(job.name || job.id)}</strong><br>
-                                        <small>ID: ${job.id}</small><br>
-                                        <small>Наступний запуск: ${job.next_run_local || 'Не заплановано'}</small><br>
-                                        <small>Тригер: ${job.trigger}</small>
-                                        ${job.is_overdue ? '<br><span style="color: #dc3545; font-weight: bold;">⚠️ Прострочено!</span>' : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        ` : '<p>Немає активних завдань.</p>'}
-                    `;
-                } else {
-                    content.innerHTML = `<div style="color: #dc3545;">❌ Помилка діагностики: ${diagnostics.error}</div>`;
+                console.error('❌ Error loading checks:', error);
+                if (isInitialLoad) {
+                    showMessage('❌ Помилка завантаження перевірок: ' + error.message, 'error');
                 }
-                
-            } catch (error) {
-                content.innerHTML = `<div style="color: #dc3545;">❌ Помилка з'єднання: ${error.message}</div>`;
-            }
-        });
-
-        // Закриття модального вікна діагностики
-        document.getElementById('closeDiagnostics').addEventListener('click', function() {
-            document.getElementById('diagnosticsModal').style.display = 'none';
-        });
-
-        window.addEventListener('click', function(event) {
-            const modal = document.getElementById('diagnosticsModal');
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-
-        // Функція завантаження статусу програми
-        async function loadAppStatus() {
-            try {
-                const response = await fetch('/api/app-status');
-                const status = await response.json();
-                
-                appSleeping = status.is_sleeping;
-                updateSleepButton();
-                updateSleepStatusDisplay(status);
-                
-            } catch (error) {
-                console.error('Error loading app status:', error);
             }
         }
 
-        // Оновлення кнопки режиму сну
-        function updateSleepButton() {
-            const btn = document.getElementById('sleepToggleBtn');
-            if (appSleeping) {
-                btn.textContent = '🌅 Вивести з сну';
-                btn.className = 'btn btn-wake';
-                btn.title = 'Вивести застосунок з режиму сну та відновити всі перевірки';
-            } else {
-                btn.textContent = '😴 Режим сну';
-                btn.className = 'btn btn-sleep';
-                btn.title = 'Перевести застосунок в режим сну (призупинити всі перевірки)';
-            }
-        }
-
-        // Оновлення відображення статусу сну
-        function updateSleepStatusDisplay(status) {
-            const container = document.getElementById('appStatusContainer');
-            const statusText = document.getElementById('sleepStatusText');
+        // Функція відображення перевірок з анімацією
+        function displayChecks(checks) {
+            const checksList = document.getElementById('checksList');
             
-            if (status.is_sleeping) {
-                container.style.display = 'block';
-                statusText.innerHTML = `
-                    <strong>😴 Режим сну активний</strong> - 
-                    Всі перевірки призупинено (${status.active_checks || 0} активних перевірок чекають відновлення)
+            if (!checks || checks.length === 0) {
+                checksList.innerHTML = `
+                    <li class="no-checks">
+                        <div class="no-checks-message">
+                            <h3>Немає активних перевірок</h3>
+                            <p>Додайте першу перевірку, натиснувши кнопку "+ Додати перевірку"</p>
+                        </div>
+                    </li>
                 `;
-                container.className = 'sleep-status sleeping';
-            } else {
-                if ((status.active_checks || 0) > 0) {
-                    container.style.display = 'block';
-                    statusText.innerHTML = `
-                        <strong>🟢 Застосунок активний</strong> - 
-                        Виконується ${status.active_jobs_count || 0} завдань з ${status.active_checks || 0} активних перевірок
-                    `;
-                    container.className = 'sleep-status active';
-                } else {
-                    container.style.display = 'none';
+                return;
+            }
+
+            // Зберігаємо існуючі елементи для анімації
+            const existingItems = {};
+            Array.from(checksList.children).forEach(li => {
+                const link = li.querySelector('a');
+                if (link) {
+                    const href = link.getAttribute('href');
+                    const checkId = href ? href.split('/').pop() : null;
+                    if (checkId) existingItems[checkId] = li;
                 }
+            });
+
+            checksList.innerHTML = '';
+
+            checks.forEach((check, index) => {
+                const checkItem = createCheckItem(check);
+                checksList.appendChild(checkItem);
+
+                // Анімація для нових/оновлених елементів
+                if (!isInitialLoad) {
+                    if (existingItems[check.id]) {
+                        // Анімація оновлення
+                        checkItem.classList.add('updated');
+                        setTimeout(() => {
+                            checkItem.classList.remove('updated');
+                        }, 1000);
+                    } else {
+                        // Анімація нового елемента
+                        checkItem.style.opacity = '0';
+                        checkItem.style.transform = 'translateY(20px)';
+                        setTimeout(() => {
+                            checkItem.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                            checkItem.style.opacity = '1';
+                            checkItem.style.transform = 'translateY(0)';
+                        }, index * 100);
+                    }
+                }
+            });
+
+            console.log(`✅ Displayed ${checks.length} checks`);
+        }
+
+        // Функція створення елемента перевірки
+        function createCheckItem(check) {
+            const li = document.createElement('li');
+            
+            let statusClass = 'status-pending';
+            let statusText = 'Очікування';
+            
+            switch(check.last_result) {
+                case 'changed':
+                    statusClass = 'status-changed';
+                    statusText = 'Зміни виявлено';
+                    break;
+                case 'no_change':
+                    statusClass = 'status-unchanged';
+                    statusText = 'Без змін';
+                    break;
+                case 'error':
+                    statusClass = 'status-error';
+                    statusText = 'Помилка';
+                    break;
+            }
+            
+            const lastChecked = check.last_checked_at ? 
+                new Date(check.last_checked_at).toLocaleString('uk-UA') : 
+                'Ніколи';
+            
+            const nextCheck = check.next_check_at ? 
+                new Date(check.next_check_at).toLocaleString('uk-UA') : 
+                'Не заплановано';
+            
+            let notificationText = 'Очікування першої перевірки';
+            if (check.last_result === 'error' && check.last_error_message) {
+                notificationText = `Помилка: ${check.last_error_message}`;
+            } else if (check.current_content) {
+                const contentPreview = check.current_content.substring(0, 100);
+                notificationText = `Контент: ${contentPreview}${check.current_content.length > 100 ? '...' : ''}`;
+            }
+            
+            li.innerHTML = `
+                <a href="/check/${check.id}" class="monitor-item">
+                    <div class="monitor-header">
+                        <span class="monitor-name">${check.name || 'Unnamed Check'}</span>
+                        <span class="monitor-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="monitor-details">
+                        <p><strong>URL:</strong> ${check.url}</p>
+                        <p><strong>Селектор:</strong> ${check.selector || 'Вся сторінка'}</p>
+                        <p><strong>Інтервал:</strong> ${check.interval} хвилин</p>
+                        <p><strong>Остання перевірка:</strong> ${lastChecked}</p>
+                        <p><strong>Наступна перевірка:</strong> ${nextCheck}</p>
+                        <p><strong>Повідомлення:</strong> ${notificationText}</p>
+                    </div>
+                </a>
+            `;
+            
+            return li;
+        }
+
+        // Функція запуску живих оновлень
+        function startLiveUpdates() {
+            if (liveUpdateInterval) return; // Уже запущено
+            
+            liveUpdateInterval = setInterval(() => {
+                if (!appSleeping) {
+                    loadChecks();
+                }
+            }, 10000); // Оновлюємо кожні 10 секунд
+            
+            console.log('🔴 Live updates started');
+        }
+
+        // Функція зупинки живих оновлень
+        function stopLiveUpdates() {
+            if (liveUpdateInterval) {
+                clearInterval(liveUpdateInterval);
+                liveUpdateInterval = null;
+                console.log('⏸️ Live updates stopped');
             }
         }
 
@@ -311,7 +335,8 @@
             
             try {
                 const response = await fetch('/api/app-sleep-toggle', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 const result = await response.json();
@@ -319,9 +344,15 @@
                 if (response.ok && result.success) {
                     appSleeping = result.new_state === 'sleeping';
                     updateSleepButton();
-                    showMessage(`✅ ${result.message}`, 'success');
                     
-                    // Оновлюємо статус та список перевірок
+                    if (result.action === 'wake_up') {
+                        showMessage('✅ Застосунок виведено з режиму сну. Всі активні перевірки відновлено.', 'success');
+                        startLiveUpdates(); // Відновлюємо живі оновлення
+                    } else {
+                        showMessage('💤 Застосунок переведено в режим сну. Всі перевірки призупинено.', 'info');
+                        stopLiveUpdates(); // Зупиняємо живі оновлення
+                    }
+                    
                     setTimeout(() => {
                         loadAppStatus();
                         loadChecks();
@@ -331,70 +362,113 @@
                 }
                 
             } catch (error) {
+                console.error('Sleep toggle error:', error);
                 showMessage('❌ Помилка з\'єднання: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
-                if (!btn.textContent.includes('⏳')) {
-                    btn.textContent = originalText;
-                }
+                btn.textContent = originalText;
             }
         });
 
-        // Допоміжні функції
-        function getStatusClass(check) {
-            if (check.status === 'paused') return 'status-paused';
-            if (check.last_result === 'error') return 'status-error';
-            if (check.last_result === 'changed') return 'status-changed';
-            if (check.last_result === 'no_change') return 'status-no-change';
-            return 'status-active';
-        }
+        // Кнопка "Оновити"
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            console.log('🔄 Manual refresh triggered');
+            loadChecks();
+            showMessage('🔄 Список перевірок оновлено', 'info');
+        });
 
-        function getStatusText(check) {
-            if (check.status === 'paused') return '⏸️ Призупинено';
-            if (check.last_result === 'error') return '❌ Помилка';
-            if (check.last_result === 'changed') return '🔄 Зміни';
-            if (check.last_result === 'no_change') return '✅ Без змін';
-            return '🟢 Активна';
-        }
-
-        function formatDateTime(isoString) {
-            if (!isoString) return 'Ніколи';
+        // Кнопка "Перевірити всі"
+        document.getElementById('forceCheckAllBtn').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = '⏳ Виконуємо...';
             
             try {
-                const date = new Date(isoString);
-                return date.toLocaleString('uk-UA', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch (e) {
-                return 'Невідомо';
+                const response = await fetch('/api/force-check-all', { method: 'POST' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`✅ ${result.message}`, 'success');
+                    setTimeout(() => loadChecks(), 2000);
+                } else {
+                    showMessage(`❌ ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Помилка: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⚡ Перевірити всі';
+            }
+        });
+
+        // Функції оновлення UI
+        function updateSleepButton() {
+            const btn = document.getElementById('sleepToggleBtn');
+            if (appSleeping) {
+                btn.textContent = '☀️ Прокинутися';
+                btn.className = 'btn btn-wake';
+            } else {
+                btn.textContent = '💤 Режим сну';
+                btn.className = 'btn btn-sleep';
             }
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function updateSleepStatusDisplay(status) {
+            const banner = document.getElementById('sleepStatusBanner');
+            if (status.show_status_banner) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
         }
 
-        function showMessage(message, type) {
-            const container = document.getElementById('messageContainer');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
-            messageDiv.textContent = message;
-            
-            container.innerHTML = '';
-            container.appendChild(messageDiv);
-            
-            // Автоматично приховати через 5 секунд
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 5000);
+        async function loadAppStatus() {
+            try {
+                const response = await fetch('/api/app-status');
+                if (response.ok) {
+                    const status = await response.json();
+                    appSleeping = status.is_sleeping;
+                    updateSleepButton();
+                    updateSleepStatusDisplay(status);
+                    
+                    // Керуємо живими оновленнями
+                    if (appSleeping) {
+                        stopLiveUpdates();
+                    } else if (!isInitialLoad) {
+                        startLiveUpdates();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading app status:', error);
+            }
         }
+
+        // Ініціалізація при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Page loaded, starting initialization...');
+            
+            // Завантажуємо статус застосунку
+            loadAppStatus();
+            
+            // Завантажуємо перевірки
+            loadChecks();
+            
+            // Позначаємо, що початкове завантаження завершено
+            setTimeout(() => {
+                isInitialLoad = false;
+                if (!appSleeping) {
+                    startLiveUpdates();
+                }
+            }, 2000);
+        });
+
+        // Очищення при закритті сторінки
+        window.addEventListener('beforeunload', function() {
+            stopLiveUpdates();
+            if (startupCheckInterval) {
+                clearInterval(startupCheckInterval);
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,8 +1,7 @@
-import logging
 from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
-
-# ВИПРАВЛЕНО: Використовуємо абсолютні імпорти
+import logging
+import atexit
 import data_manager
 import monitor_engine
 
@@ -134,15 +133,17 @@ def init_scheduler(app_checks):
             try:
                 interval_minutes = int(check_config.get('interval', 5))
                 if interval_minutes <= 0:
-                    logging.warning(f"Scheduler: Invalid interval {interval_minutes} for check '{check_config.get('name', check_config['id'])}'. Setting to 5 minutes.")
-                    interval_minutes = 5
+                    logging.warning(f"Invalid interval {interval_minutes} for check {check_config['id']}")
+                    check_config['next_check_at'] = None
+                    updated_checks.append(check_config)
+                    continue
                 
                 # ВИПРАВЛЕНО: Додаємо check_id як аргумент функції
                 scheduler.add_job(
                     func=scheduled_check_task,
                     trigger='interval',
                     minutes=interval_minutes,
-                    args=[check_config['id']],  # Передаємо check_id як аргумент
+                    args=[check_config['id']],
                     id=check_config['id'],
                     name=f"Check: {check_config.get('name', check_config['id'])}",
                     replace_existing=True
@@ -156,12 +157,12 @@ def init_scheduler(app_checks):
                     if job and job.next_run_time:
                         next_run_local = job.next_run_time.astimezone()
                         check_config['next_check_at'] = next_run_local.isoformat()
-                        logging.info(f"Set next_check_at for {check_config['id']}: {check_config['next_check_at']}")
+                        logging.info(f"Set next_check_at for job {check_config['id']}: {check_config['next_check_at']}")
                     else:
                         check_config['next_check_at'] = None
-                        logging.warning(f"Could not set next_check_at for {check_config['id']} - no job found")
+                        logging.warning(f"Could not get next_run_time for job {check_config['id']}")
                 except Exception as e:
-                    logging.warning(f"Error setting next_check_at for {check_config['id']}: {e}")
+                    logging.warning(f"Error setting next_check_at for job {check_config['id']}: {e}")
                     check_config['next_check_at'] = None
                     
             except Exception as e:
@@ -344,11 +345,11 @@ def force_scheduler_check():
                 
                 # Примусово запускаємо завдання
                 try:
-                    job.func(*job.args)
+                    scheduled_check_task(job.id)
                     forced_jobs += 1
-                    logging.info(f"Manually executed overdue job {job.id}")
+                    logging.info(f"Forced execution of overdue job {job.id}")
                 except Exception as e:
-                    logging.error(f"Error executing overdue job {job.id}: {e}")
+                    logging.error(f"Error during forced execution of job {job.id}: {e}")
         
         if forced_jobs > 0:
             logging.info(f"Forced execution of {forced_jobs} overdue jobs")
@@ -378,10 +379,9 @@ def execute_all_active_checks():
         
         for check_config in active_checks:
             try:
-                # Використовуємо існуючу функцію scheduled_check_task
+                logging.info(f"Executing check: {check_config.get('name', check_config['id'])}")
                 scheduled_check_task(check_config['id'])
                 executed_count += 1
-                logging.info(f"Executed check: {check_config.get('name', check_config['id'])}")
             except Exception as e:
                 logging.error(f"Error executing check {check_config['id']}: {e}")
         
@@ -419,8 +419,8 @@ def get_checks_summary():
                 summary["recent_errors"].append({
                     "name": check.get('name', 'Unnamed'),
                     "id": check['id'],
-                    "error": check.get('last_error_message', 'Unknown error'),
-                    "last_checked": check.get('last_checked_at')
+                    "last_checked": check.get('last_checked_at'),
+                    "error": check.get('last_error_message', 'Unknown error')
                 })
         
         return summary
@@ -430,7 +430,6 @@ def get_checks_summary():
         return {"error": str(e)}
 
 # Также убедимся, что планировщик корректно останавливается при завершении приложения
-import atexit
 atexit.register(lambda: scheduler.shutdown(wait=False) if scheduler.running else None)
 
 # Глобальна змінна для відстеження стану сну
@@ -532,15 +531,15 @@ def update_next_check_times_after_wake_up():
                     job = scheduler.get_job(check_id)
                     if job and job.next_run_time:
                         next_run_local = job.next_run_time.astimezone()
-                        check['next_check_at'] = next_run_local.isoformat()
-                        updated = True
-                        logging.debug(f"Updated next_check_at for {check_id} after wake up: {check['next_check_at']}")
-                    else:
-                        check['next_check_at'] = None
-                        updated = True
-                        logging.warning(f"No job found for {check_id} after wake up")
+                        old_time = check.get('next_check_at')
+                        new_time = next_run_local.isoformat()
+                        
+                        if old_time != new_time:
+                            check['next_check_at'] = new_time
+                            updated = True
+                            logging.info(f"Updated next_check_at after wake up for {check_id}: {old_time} -> {new_time}")
                 except Exception as e:
-                    logging.warning(f"Error updating next_check_at for {check_id} after wake up: {e}")
+                    logging.warning(f"Error updating next_check_at after wake up for {check_id}: {e}")
         
         if updated:
             data_manager.save_checks(all_checks)
