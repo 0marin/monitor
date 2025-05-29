@@ -1,54 +1,5 @@
 [
     {
-        "timestamp": "2025-05-29T06:39:01.242242+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:44:01.242287+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:49:05.317036+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:54:00.935449+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:59:01.308642+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T07:04:01.480099+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T07:09:00.795860+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 4 items",
-        "content_hash": "5c034961e561a04627ed7b87c928882b",
-        "error_message": null
-    },
-    {
         "timestamp": "2025-05-29T07:14:00.782260+00:00",
         "status": "no_change",
         "extracted_value": "Search result: 4 items",
@@ -137,6 +88,55 @@
         "status": "no_change",
         "extracted_value": "Search result: 4 items",
         "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:06:46.006690+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:11:46.489317+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:16:47.035646+00:00",
+        "status": "changed",
+        "extracted_value": "Search result: 9 items",
+        "content_hash": "d43aa9a55efd21f65a4622b7d998963f",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:21:46.867896+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 9 items",
+        "content_hash": "d43aa9a55efd21f65a4622b7d998963f",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:26:46.873273+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 9 items",
+        "content_hash": "d43aa9a55efd21f65a4622b7d998963f",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:31:46.920863+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 9 items",
+        "content_hash": "d43aa9a55efd21f65a4622b7d998963f",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:41:30.663732+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 9 items",
+        "content_hash": "d43aa9a55efd21f65a4622b7d998963f",
         "error_message": null
     }
 ]

@@ -1,54 +1,5 @@
 [
     {
-        "timestamp": "2025-05-29T06:39:01.234770+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:44:01.493809+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:49:06.058528+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:54:00.917056+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T06:59:00.921056+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T07:04:01.481198+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-29T07:09:01.000274+00:00",
-        "status": "no_change",
-        "extracted_value": "Search result: 0 items",
-        "content_hash": "fc9bfaada216974eb436c957958c4996",
-        "error_message": null
-    },
-    {
         "timestamp": "2025-05-29T07:14:01.462361+00:00",
         "status": "no_change",
         "extracted_value": "Search result: 0 items",
@@ -134,6 +85,55 @@
     },
     {
         "timestamp": "2025-05-29T08:03:17.870602+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:06:47.021998+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:11:46.487817+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:16:47.238216+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:21:46.374061+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:26:47.382684+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:31:47.115600+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 0 items",
+        "content_hash": "fc9bfaada216974eb436c957958c4996",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:41:28.639421+00:00",
         "status": "no_change",
         "extracted_value": "Search result: 0 items",
         "content_hash": "fc9bfaada216974eb436c957958c4996",
