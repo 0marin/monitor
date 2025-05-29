@@ -66,9 +66,12 @@ function showChecks(checks) {
         const currentContent = getCurrentContent(check);
         const contentPreview = currentContent ? getContentPreview(currentContent, 100) : null;
         
+        // Додаємо клас для статусу
+        const statusClass = check.status === 'paused' ? 'status-paused' : 'status-active';
+        
         return `
             <li>
-                <a href="/check/${check.id}" class="monitor-item">
+                <a href="/check/${check.id}" class="monitor-item ${statusClass}">
                     <div class="monitor-header">
                         <div>
                             <div class="monitor-name">🔗 ${htmlEscape(check.name || 'Безіменна')}</div>

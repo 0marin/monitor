@@ -1,142 +1,142 @@
 [
     {
-        "timestamp": "2025-05-26T06:54:01.274137+00:00",
+        "timestamp": "2025-05-29T06:39:01.242242+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 1 items",
-        "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T06:59:01.461299+00:00",
+        "timestamp": "2025-05-29T06:44:01.242287+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 1 items",
-        "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T07:04:01.411142+00:00",
+        "timestamp": "2025-05-29T06:49:05.317036+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 1 items",
-        "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T07:09:01.958516+00:00",
+        "timestamp": "2025-05-29T06:54:00.935449+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 1 items",
-        "content_hash": "9fbcd143d332f20bbf65c7d98847af53",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T07:14:01.807030+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T07:19:01.407558+00:00",
+        "timestamp": "2025-05-29T06:59:01.308642+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T08:14:00.359105+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:30:56.295930+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:34:22.870403+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:39:20.730727+00:00",
+        "timestamp": "2025-05-29T07:04:01.480099+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T08:44:30.178207+00:00",
-        "status": "error",
-        "extracted_value": null,
-        "content_hash": null,
-        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?soldOut=0&upToMinutes=360&dispCount=240&keyword=1%2F43&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
-    },
-    {
-        "timestamp": "2025-05-26T08:49:00.448342+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 2 items",
-        "content_hash": "0e9886b3d2c96e0f70902929147f6ed8",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:54:20.399231+00:00",
+        "timestamp": "2025-05-29T07:09:00.795860+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T08:59:30.187441+00:00",
-        "status": "error",
-        "extracted_value": null,
-        "content_hash": null,
-        "error_message": "Сервер 'https://order.mandarake.co.jp/order/listPage/list?soldOut=0&upToMinutes=360&dispCount=240&keyword=1%2F43&lang=en' не відповідає (timeout через 30с). Можливо сайт перевантажений або недоступний."
-    },
-    {
-        "timestamp": "2025-05-26T09:04:18.272958+00:00",
+        "timestamp": "2025-05-29T07:14:00.782260+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:09:11.368384+00:00",
+        "timestamp": "2025-05-29T07:19:01.199884+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:14:20.530144+00:00",
+        "timestamp": "2025-05-29T07:24:00.730573+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 3 items",
-        "content_hash": "90761341343c6c82a7b423f9fc0e76af",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:19:07.878428+00:00",
-        "status": "changed",
-        "extracted_value": "Search result: 5 items",
-        "content_hash": "a6a0156752d23040a16df3e9e5d03081",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:24:25.884167+00:00",
+        "timestamp": "2025-05-29T07:29:01.365740+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 5 items",
-        "content_hash": "a6a0156752d23040a16df3e9e5d03081",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:29:13.772806+00:00",
+        "timestamp": "2025-05-29T07:34:00.741302+00:00",
         "status": "no_change",
-        "extracted_value": "Search result: 5 items",
-        "content_hash": "a6a0156752d23040a16df3e9e5d03081",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:35:49.162683+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:40:50.539723+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:45:50.398313+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:50:50.516770+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:54:19.111166+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:59:13.806284+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:02:00.634094+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:03:18.161170+00:00",
+        "status": "no_change",
+        "extracted_value": "Search result: 4 items",
+        "content_hash": "5c034961e561a04627ed7b87c928882b",
         "error_message": null
     }
 ]

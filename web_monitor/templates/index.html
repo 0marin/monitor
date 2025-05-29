@@ -252,28 +252,59 @@
             let statusClass = 'status-pending';
             let statusText = 'Очікування';
             
-            switch(check.last_result) {
-                case 'changed':
-                    statusClass = 'status-changed';
-                    statusText = 'Зміни виявлено';
-                    break;
-                case 'no_change':
-                    statusClass = 'status-unchanged';
-                    statusText = 'Без змін';
-                    break;
-                case 'error':
-                    statusClass = 'status-error';
-                    statusText = 'Помилка';
-                    break;
+            // ВИПРАВЛЕНО: Додаємо перевірку статусу перевірки
+            if (check.status === 'paused') {
+                statusClass = 'status-paused';
+                statusText = '⏸️ Призупинено';
+            } else {
+                switch(check.last_result) {
+                    case 'changed':
+                        statusClass = 'status-changed';
+                        statusText = 'Зміни виявлено';
+                        break;
+                    case 'no_change':
+                        statusClass = 'status-unchanged';
+                        statusText = 'Без змін';
+                        break;
+                    case 'error':
+                        statusClass = 'status-error';
+                        statusText = 'Помилка';
+                        break;
+                    default:
+                        statusClass = 'status-active';
+                        statusText = '🟢 Активна';
+                }
             }
             
             const lastChecked = check.last_checked_at ? 
                 new Date(check.last_checked_at).toLocaleString('uk-UA') : 
                 'Ніколи';
             
-            const nextCheck = check.next_check_at ? 
-                new Date(check.next_check_at).toLocaleString('uk-UA') : 
-                'Не заплановано';
+            // ВИПРАВЛЕНО: Покращене відображення наступної перевірки
+            let nextCheck = 'Не заплановано';
+            if (check.status === 'active' && check.next_check_at) {
+                try {
+                    const nextDate = new Date(check.next_check_at);
+                    const now = new Date();
+                    const diffMs = nextDate - now;
+                    
+                    if (diffMs > 0) {
+                        const diffMins = Math.round(diffMs / (1000 * 60));
+                        if (diffMins < 60) {
+                            nextCheck = `Через ${diffMins} хв. (${nextDate.toLocaleString('uk-UA')})`;
+                        } else {
+                            nextCheck = nextDate.toLocaleString('uk-UA');
+                        }
+                    } else {
+                        nextCheck = 'Прострочено - очікує виконання';
+                    }
+                } catch (e) {
+                    console.warn('Error parsing next_check_at:', e);
+                    nextCheck = check.next_check_at;
+                }
+            } else if (check.status === 'paused') {
+                nextCheck = 'Призупинено';
+            }
             
             let notificationText = 'Очікування першої перевірки';
             if (check.last_result === 'error' && check.last_error_message) {
@@ -284,7 +315,7 @@
             }
             
             li.innerHTML = `
-                <a href="/check/${check.id}" class="monitor-item">
+                <a href="/check/${check.id}" class="monitor-item ${check.status === 'paused' ? 'status-paused' : ''}">
                     <div class="monitor-header">
                         <span class="monitor-name">${check.name || 'Unnamed Check'}</span>
                         <span class="monitor-status ${statusClass}">${statusText}</span>
@@ -469,6 +500,29 @@
                 clearInterval(startupCheckInterval);
             }
         });
+
+        // ДОДАНО: Функція для перевірки актуальності часів наступних перевірок
+        function checkNextRunTimes() {
+            const items = document.querySelectorAll('.monitor-item');
+            let needsUpdate = false;
+            
+            items.forEach(item => {
+                const nextCheckElements = item.querySelectorAll('p');
+                nextCheckElements.forEach(p => {
+                    if (p.innerHTML.includes('Наступна перевірка:') && p.innerHTML.includes('Прострочено')) {
+                        needsUpdate = true;
+                    }
+                });
+            });
+            
+            if (needsUpdate) {
+                console.log('⏰ Found overdue checks, refreshing data...');
+                loadChecks();
+            }
+        }
+
+        // ДОДАНО: Перевіряємо прострочені завдання кожні 30 секунд
+        setInterval(checkNextRunTimes, 30000);
     </script>
 </body>
 </html>

@@ -200,43 +200,62 @@ def update_job(check_id, interval_minutes):
             logging.warning(f"Scheduler: Invalid interval {interval_minutes} for check_id {check_id}. Not updating.")
             return False
         
-        job = scheduler.get_job(check_id)
-        if job:
-            # Перепланувати існуючу задачу
-            scheduler.reschedule_job(check_id, trigger='interval', minutes=interval_minutes)
-            logging.info(f"Scheduler: Rescheduled job for check_id: {check_id} to {interval_minutes} minutes.")
-            
-        else:
-            # Додати нову задачу, якщо її не існує
-            all_checks = data_manager.load_checks()
-            check_config = next((c for c in all_checks if c['id'] == check_id), None)
-            if check_config and check_config.get("status") == "active":
-                scheduler.add_job(
-                    func=scheduled_check_task,
-                    trigger='interval',
-                    minutes=interval_minutes,
-                    args=[check_config['id']],
-                    id=check_config['id'],
-                    name=f"Check: {check_config.get('name', check_config['id'])}",
-                    replace_existing=True
-                )
-                logging.info(f"Scheduler: Added new job for check_id: {check_id} with interval {interval_minutes} minutes.")
-                
-            elif check_config and check_config.get("status") == "paused":
-                logging.info(f"Scheduler: Check {check_id} is paused. Not adding job.")
-                return False
-            else:
-                logging.warning(f"Scheduler: Check {check_id} not found in config. Cannot add job.")
-                return False
+        # ДОДАНО: Спочатку видаляємо старе завдання для чистоти
+        existing_job = scheduler.get_job(check_id)
+        if existing_job:
+            logging.info(f"Removing existing job for {check_id} before update")
+            scheduler.remove_job(check_id)
         
-        # ВИПРАВЛЕНО: Перевіряємо, чи завдання успішно створено/оновлено
-        updated_job = scheduler.get_job(check_id)
-        if updated_job and updated_job.next_run_time:
-            logging.info(f"Job {check_id} successfully updated. Next run: {updated_job.next_run_time.isoformat()}")
-            return True
-        else:
-            logging.error(f"Job {check_id} update failed - no next_run_time found")
+        # Завантажуємо дані перевірки
+        all_checks = data_manager.load_checks()
+        check_config = next((c for c in all_checks if c['id'] == check_id), None)
+        
+        if not check_config:
+            logging.warning(f"Scheduler: Check {check_id} not found in config. Cannot add job.")
             return False
+            
+        if check_config.get("status") != "active":
+            logging.info(f"Scheduler: Check {check_id} is not active (status: {check_config.get('status')}). Not adding job.")
+            return False
+        
+        # ВИПРАВЛЕНО: Створюємо нове завдання з чіткими параметрами
+        try:
+            scheduler.add_job(
+                func=scheduled_check_task,
+                trigger='interval',
+                minutes=interval_minutes,
+                args=[check_id],
+                id=check_id,
+                name=f"Check: {check_config.get('name', check_config['id'])}",
+                replace_existing=True,
+                max_instances=1,  # ДОДАНО: Запобігаємо одночасному виконанню
+                coalesce=True     # ДОДАНО: Об'єднуємо пропущені запуски
+            )
+            logging.info(f"✅ Successfully created new job for {check_id} with interval {interval_minutes} minutes")
+        except Exception as e:
+            logging.error(f"❌ Error creating job for {check_id}: {e}")
+            return False
+        
+        # ВИПРАВЛЕНО: Перевіряємо, чи завдання успішно створено з кількома спробами
+        for attempt in range(3):
+            try:
+                updated_job = scheduler.get_job(check_id)
+                if updated_job and updated_job.next_run_time:
+                    logging.info(f"✅ Attempt {attempt+1}: Job {check_id} verified. Next run: {updated_job.next_run_time.isoformat()}")
+                    return True
+                else:
+                    logging.warning(f"❌ Attempt {attempt+1}: Job {check_id} not found or no next_run_time")
+                    if attempt < 2:
+                        import time
+                        time.sleep(0.1)  # Коротка пауза перед повторною спробою
+            except Exception as e:
+                logging.error(f"❌ Attempt {attempt+1}: Error verifying job {check_id}: {e}")
+                if attempt < 2:
+                    import time
+                    time.sleep(0.1)
+        
+        logging.error(f"❌ Job {check_id} creation failed after 3 verification attempts")
+        return False
             
     except Exception as e:
         logging.error(f"Scheduler: Error updating job for check_id {check_id}: {e}")

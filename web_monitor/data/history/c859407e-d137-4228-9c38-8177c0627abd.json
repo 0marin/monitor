@@ -1,139 +1,139 @@
 [
     {
-        "timestamp": "2025-05-26T08:52:01.024245+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:54:01.173071+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:56:00.873301+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T08:58:02.995075+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:00:01.471050+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:02:01.060837+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:04:00.931659+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:06:00.946465+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:08:00.827169+00:00",
-        "status": "no_change",
-        "extracted_value": "390 ₴",
-        "content_hash": "6a3f57a89d1ead1cceb637130962434a",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:10:01.630164+00:00",
-        "status": "changed",
-        "extracted_value": "400 ₴",
-        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
-        "error_message": null
-    },
-    {
-        "timestamp": "2025-05-26T09:12:01.219305+00:00",
+        "timestamp": "2025-05-28T14:32:57.950742+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:14:01.025169+00:00",
+        "timestamp": "2025-05-28T14:34:57.897577+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:16:02.164873+00:00",
+        "timestamp": "2025-05-28T14:36:57.876853+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:18:00.999166+00:00",
+        "timestamp": "2025-05-28T14:38:57.875782+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:20:01.568454+00:00",
+        "timestamp": "2025-05-28T14:40:57.986602+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:22:01.067591+00:00",
+        "timestamp": "2025-05-28T14:42:57.930467+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:24:01.256568+00:00",
+        "timestamp": "2025-05-28T14:44:58.037903+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:26:00.947586+00:00",
+        "timestamp": "2025-05-28T14:46:58.285299+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:28:00.854902+00:00",
+        "timestamp": "2025-05-28T14:48:57.913631+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",
         "error_message": null
     },
     {
-        "timestamp": "2025-05-26T09:30:02.000745+00:00",
+        "timestamp": "2025-05-28T14:50:57.978245+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-28T14:52:57.835112+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-28T14:54:58.068083+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-28T14:56:57.839344+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:36:00.392597+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:54:15.163192+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:55:25.599494+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T07:55:48.306927+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:01:59.975518+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:03:34.408340+00:00",
+        "status": "no_change",
+        "extracted_value": "400 ₴",
+        "content_hash": "f57f6be8015153b30d342d4cc96cebef",
+        "error_message": null
+    },
+    {
+        "timestamp": "2025-05-29T08:05:34.088101+00:00",
         "status": "no_change",
         "extracted_value": "400 ₴",
         "content_hash": "f57f6be8015153b30d342d4cc96cebef",

@@ -210,7 +210,7 @@ def api_add_check():
 
 @app.route('/api/checks', methods=['GET'])
 def api_get_checks():
-    """API эндпоинт для получения списка всех проверок."""
+    """API эндпоінт для получения списка всех проверок."""
     checks = data_manager.load_checks()
     
     # ДОДАНО: Додаємо поточний контент до кожної перевірки
@@ -232,7 +232,7 @@ def api_get_checks():
 
 @app.route('/api/checks/<check_id>', methods=['GET'])
 def api_get_check_details(check_id):
-    """API эндпоинт для получения детальной информации о проверке по ID."""
+    """API эндпоінт для получения детальной информации о проверке по ID."""
     check_details = data_manager.get_check_by_id(check_id)
     if check_details:
         return jsonify(check_details), 200
@@ -241,7 +241,7 @@ def api_get_check_details(check_id):
 
 @app.route('/api/system-status', methods=['GET'])
 def api_get_system_status():
-    """API эндпоинт для получения состояния системы."""
+    """API эндпоінт для получения состояния системы."""
     try:
         active_jobs = scheduler_tasks.scheduler.get_jobs()
         
@@ -275,7 +275,7 @@ def api_get_system_status():
 
 @app.route('/api/checks/<check_id>', methods=['PUT'])
 def api_update_check(check_id):
-    """API эндпоинт для обновления существующей проверки."""
+    """API эндпоінт для обновления существующей проверки."""
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
     
@@ -429,24 +429,56 @@ def api_manual_check(check_id):
                 else:
                     check['last_error_message'] = error_msg
                 
-                # Оновлюємо наступний час перевірки
+                # ВИПРАВЛЕНО: ОБОВ'ЯЗКОВО оновлюємо наступний час перевірки
                 if check.get('status') == 'active':
                     try:
                         job = scheduler_tasks.scheduler.get_job(check_id)
                         if job and job.next_run_time:
                             next_run_local = job.next_run_time.astimezone()
-                            check['next_check_at'] = next_run_local.isoformat()
+                            old_time = check.get('next_check_at')
+                            new_time = next_run_local.isoformat()
+                            check['next_check_at'] = new_time
+                            logging.info(f"🔄 Manual check - updated next_check_at: {old_time} -> {new_time}")
+                        else:
+                            # ДОДАНО: Якщо завдання не знайдено, створюємо його
+                            logging.warning(f"No job found for active check {check_id} during manual check. Creating job...")
+                            interval_minutes = check.get('interval', 5)
+                            if scheduler_tasks.update_job(check_id, interval_minutes):
+                                # Спробуємо отримати час ще раз
+                                import time
+                                time.sleep(0.1)
+                                job = scheduler_tasks.scheduler.get_job(check_id)
+                                if job and job.next_run_time:
+                                    next_run_local = job.next_run_time.astimezone()
+                                    check['next_check_at'] = next_run_local.isoformat()
+                                    logging.info(f"✅ Created missing job and set next_check_at: {check['next_check_at']}")
+                                else:
+                                    logging.error(f"❌ Failed to get next_check_at even after creating job for {check_id}")
+                                    check['next_check_at'] = None
+                            else:
+                                logging.error(f"❌ Failed to create missing job for {check_id}")
+                                check['next_check_at'] = None
                     except Exception as e:
                         logging.warning(f"Could not get next_run_time for job {check_id}: {e}")
+                        check['next_check_at'] = None
+                else:
+                    # Для неактивних перевірок очищуємо час
+                    check['next_check_at'] = None
                 break
         
         data_manager.save_checks(all_checks)
+        
+        # ДОДАНО: Повертаємо оновлену інформацію про планувальник
+        scheduler_job = scheduler_tasks.scheduler.get_job(check_id)
         
         return jsonify({
             "status": status,
             "extracted_text": extracted_text,
             "error_message": error_msg,
-            "timestamp": current_time_iso
+            "timestamp": current_time_iso,
+            "next_check_at": all_checks[next(i for i, c in enumerate(all_checks) if c['id'] == check_id)].get('next_check_at'),
+            "scheduler_job_exists": scheduler_job is not None,
+            "scheduler_next_run": scheduler_job.next_run_time.astimezone().isoformat() if scheduler_job and scheduler_job.next_run_time else None
         }), 200
         
     except Exception as e:
@@ -469,37 +501,66 @@ def api_toggle_check_status(check_id):
         # Оновлюємо статус в базі даних
         all_checks = data_manager.load_checks()
         check_result = None
+        target_check = None
         
         for check in all_checks:
             if check['id'] == check_id:
                 check['status'] = new_status
+                target_check = check
                 # ВИПРАВЛЕНО: Очищуємо старий час наступної перевірки при деактивації
                 if new_status == 'paused':
                     check['next_check_at'] = None
                 break
+        
+        if not target_check:
+            return jsonify({"error": "Check not found in data"}), 404
+        
+        # ВИПРАВЛЕНО: Зберігаємо дані ПЕРЕД роботою з планувальником
+        data_manager.save_checks(all_checks)
         
         # Управляємо планувальником
         if new_status == 'active':
             # Активуємо - додаємо/поновлюємо завдання
             interval_minutes = check_details.get('interval', 5)
             
-            # ВИПРАВЛЕНО: Спочатку оновлюємо завдання в планувальнику
+            # ВИПРАВЛЕНО: Спочатку видаляємо старе завдання, якщо є
+            try:
+                scheduler_tasks.remove_job(check_id)
+                logging.info(f"Removed old job for {check_id} before activation")
+            except Exception as e:
+                logging.info(f"No old job to remove for {check_id}: {e}")
+            
+            # Додаємо нове завдання
             success = scheduler_tasks.update_job(check_id, interval_minutes)
             
             if success:
-                # Отримуємо час наступного запуску ПІСЛЯ створення завдання
-                try:
-                    job = scheduler_tasks.scheduler.get_job(check_id)
-                    if job and job.next_run_time:
-                        next_run_local = job.next_run_time.astimezone()
-                        # Оновлюємо в пам'яті
-                        for check in all_checks:
-                            if check['id'] == check_id:
-                                check['next_check_at'] = next_run_local.isoformat()
-                                logging.info(f"Set next_check_at for activated job {check_id}: {check['next_check_at']}")
-                                break
-                except Exception as e:
-                    logging.warning(f"Could not get next_run_time for activated job {check_id}: {e}")
+                # ВИПРАВЛЕНО: Чекаємо та форсуємо оновлення next_check_at
+                import time
+                time.sleep(0.2)  # Збільшуємо паузу для стабілізації
+                
+                # ДОДАНО: Повторюємо спроби отримання часу
+                for attempt in range(3):
+                    try:
+                        job = scheduler_tasks.scheduler.get_job(check_id)
+                        if job and job.next_run_time:
+                            next_run_local = job.next_run_time.astimezone()
+                            target_check['next_check_at'] = next_run_local.isoformat()
+                            logging.info(f"✅ Attempt {attempt+1}: Set next_check_at for activated job {check_id}: {target_check['next_check_at']}")
+                            break
+                        else:
+                            logging.warning(f"❌ Attempt {attempt+1}: Could not get next_run_time for activated job {check_id}")
+                            if attempt < 2:
+                                time.sleep(0.1 * (attempt + 1))  # Прогресивна затримка
+                    except Exception as e:
+                        logging.warning(f"❌ Attempt {attempt+1}: Error getting next_run_time for activated job {check_id}: {e}")
+                        if attempt < 2:
+                            time.sleep(0.1 * (attempt + 1))
+                
+                if not target_check.get('next_check_at'):
+                    logging.error(f"❌ Failed to set next_check_at after 3 attempts for {check_id}")
+            else:
+                logging.error(f"❌ Failed to create job for {check_id}")
+                target_check['next_check_at'] = None
             
             # Виконуємо одразу перевірку при активації
             try:
@@ -525,23 +586,30 @@ def api_toggle_check_status(check_id):
                 data_manager.save_check_history_entry(check_id, history_entry)
                 
                 # Оновлюємо основні дані після перевірки
-                for check in all_checks:
-                    if check['id'] == check_id:
-                        check['last_checked_at'] = current_time_iso
-                        check['last_result'] = status
-                        if status in ["changed", "no_change"]:
-                            check['last_content_hash'] = new_hash
-                        if status != "error":
-                            check['last_error_message'] = None
-                        else:
-                            check['last_error_message'] = error_msg
-                        break
+                target_check['last_checked_at'] = current_time_iso
+                target_check['last_result'] = status
+                if status in ["changed", "no_change"]:
+                    target_check['last_content_hash'] = new_hash
+                if status != "error":
+                    target_check['last_error_message'] = None
+                else:
+                    target_check['last_error_message'] = error_msg
                 
                 check_result = {
                     "status": status,
                     "extracted_text": extracted_text,
                     "error_message": error_msg
                 }
+                
+                # ДОДАНО: Перевіряємо час після виконання перевірки
+                try:
+                    job = scheduler_tasks.scheduler.get_job(check_id)
+                    if job and job.next_run_time:
+                        next_run_local = job.next_run_time.astimezone()
+                        target_check['next_check_at'] = next_run_local.isoformat()
+                        logging.info(f"🔄 Updated next_check_at after activation check: {target_check['next_check_at']}")
+                except Exception as e:
+                    logging.warning(f"Could not update next_check_at after activation check: {e}")
                 
             except Exception as e:
                 logging.error(f"Error during activation check for {check_id}: {e}")
@@ -553,13 +621,19 @@ def api_toggle_check_status(check_id):
             # Деактивуємо - видаляємо завдання
             scheduler_tasks.remove_job(check_id)
         
-        # ВИПРАВЛЕНО: Зберігаємо дані лише один раз в кінці
+        # ВИПРАВЛЕНО: Зберігаємо оновлені дані після всіх операцій
         data_manager.save_checks(all_checks)
+        
+        # ДОДАНО: Повертаємо свіжі дані перевірки
+        updated_check = data_manager.get_check_by_id(check_id)
         
         return jsonify({
             "old_status": current_status,
             "new_status": new_status,
-            "check_result": check_result if new_status == 'active' else None
+            "check_result": check_result if new_status == 'active' else None,
+            "updated_check": updated_check,
+            "next_check_at": updated_check.get('next_check_at'),
+            "scheduler_job_exists": scheduler_tasks.scheduler.get_job(check_id) is not None
         }), 200
         
     except Exception as e:
@@ -636,134 +710,100 @@ def api_test_selector():
         app.logger.error(f"Error testing selector: {e}", exc_info=True)
         return jsonify({"error": f"Test failed: {str(e)}"}), 500
 
-# ДОДАНО: Функція для оновлення next_check_at при запуску
-def update_next_check_times():
-    """
-    Оновлює часи наступних перевірок для всіх активних завдань.
-    Викликається при запуску застосунку.
-    """
+@app.route('/api/force-update-times', methods=['POST'])
+def api_force_update_times():
+    """API ендпоінт для примусового оновлення часів наступних перевірок."""
     try:
-        all_checks = data_manager.load_checks()
-        updated = False
+        updated_count = scheduler_tasks.force_update_next_check_times()
         
-        for check in all_checks:
-            if check.get('status') == 'active':
-                check_id = check['id']
-                try:
-                    job = scheduler_tasks.scheduler.get_job(check_id)
-                    if job and job.next_run_time:
-                        next_run_local = job.next_run_time.astimezone()
-                        old_time = check.get('next_check_at')
-                        new_time = next_run_local.isoformat()
-                        
-                        if old_time != new_time:
-                            check['next_check_at'] = new_time
-                            updated = True
-                            logging.info(f"Updated next_check_at for {check_id}: {old_time} -> {new_time}")
-                    else:
-                        if check.get('next_check_at') is not None:
-                            check['next_check_at'] = None
-                            updated = True
-                            logging.warning(f"Cleared next_check_at for {check_id} - no active job found")
-                except Exception as e:
-                    logging.warning(f"Error updating next_check_at for {check_id}: {e}")
-            else:
-                # Очищуємо next_check_at для неактивних перевірок
-                if check.get('next_check_at') is not None:
-                    check['next_check_at'] = None
-                    updated = True
+        return jsonify({
+            "message": f"Примусово оновлено {updated_count} часів наступних перевірок",
+            "updated_count": updated_count,
+            "success": True
+        }), 200
         
-        if updated:
-            data_manager.save_checks(all_checks)
-            logging.info("Next check times updated successfully after startup")
-        else:
-            logging.info("No next check times needed updating after startup")
-            
     except Exception as e:
-        logging.error(f"Error updating next check times: {e}")
+        app.logger.error(f"Error during force update times: {e}", exc_info=True)
+        return jsonify({"error": f"Помилка оновлення часів: {str(e)}"}), 500
 
-# ДОДАНО: Функція для виконання всіх активних перевірок при запуску
-def perform_initial_checks():
-    """
-    Виконує всі активні перевірки одразу при запуску застосунку.
-    Це забезпечує актуальність даних до початку роботи планувальника.
-    """
+@app.route('/api/app-sleep-toggle', methods=['POST'])
+def api_app_sleep_toggle():
+    """API ендпоінт для переведення застосунку в режим сну та виходу з нього."""
     try:
-        all_checks = data_manager.load_checks()
-        active_checks = [check for check in all_checks if check.get("status") == "active"]
+        # Отримуємо поточний стан системи
+        is_sleeping = scheduler_tasks.is_app_sleeping()
         
-        if not active_checks:
-            logging.info("No active checks found for initial execution")
-            return
-        
-        logging.info(f"Performing initial checks for {len(active_checks)} active monitors...")
-        
-        successful_checks = 0
-        failed_checks = 0
-        
-        for check in active_checks:
-            check_id = check['id']
-            check_name = check.get('name', 'Unnamed Check')
+        if is_sleeping:
+            # Виводимо з режиму сну - відновлюємо всі активні перевірки
+            logging.info("Waking up application - resuming all active checks")
             
-            try:
-                logging.info(f"Initial check: {check_name} (ID: {check_id[:8]}...)")
+            # Відновлюємо планувальник
+            success = scheduler_tasks.wake_up_app()
+            
+            if success:
+                return jsonify({
+                    "action": "wake_up",
+                    "old_state": "sleeping",
+                    "new_state": "active",
+                    "message": "Застосунок виведено з режиму сну. Всі активні перевірки відновлено.",
+                    "success": True
+                }), 200
+            else:
+                return jsonify({
+                    "error": "Помилка виведення з режиму сну",
+                    "success": False
+                }), 500
+        else:
+            # Переводимо в режим сну - зупиняємо всі перевірки
+            logging.info("Putting application to sleep - pausing all active checks")
+            
+            # Зупиняємо планувальник
+            success = scheduler_tasks.put_app_to_sleep()
+            
+            if success:
+                return jsonify({
+                    "action": "sleep",
+                    "old_state": "active", 
+                    "new_state": "sleeping",
+                    "message": "Застосунок переведено в режим сну. Всі перевірки призупинено.",
+                    "success": True
+                }), 200
+            else:
+                return jsonify({
+                    "error": "Помилка переведення в режим сну",
+                    "success": False
+                }), 500
                 
-                # Виконуємо перевірку
-                status, new_hash, extracted_text, error_msg = monitor_engine.perform_check(
-                    check_id=check['id'],
-                    name=check.get('name', 'Initial Check'),
-                    url=check['url'],
-                    selector=check['selector'],
-                    last_hash=check.get('last_content_hash')
-                )
-                
-                # Зберігаємо результат в історію
-                current_time_utc = datetime.now(timezone.utc)
-                current_time_iso = current_time_utc.isoformat()
-                
-                history_entry = {
-                    "timestamp": current_time_iso,
-                    "status": status,
-                    "extracted_value": extracted_text,
-                    "content_hash": new_hash,
-                    "error_message": error_msg
-                }
-                data_manager.save_check_history_entry(check_id, history_entry)
-                
-                # Оновлюємо основні дані перевірки
-                check['last_checked_at'] = current_time_iso
-                check['last_result'] = status
-                
-                if status in ["changed", "no_change"]:
-                    check['last_content_hash'] = new_hash
-                    successful_checks += 1
-                    logging.info(f"✅ Initial check successful: {check_name} - {status}")
-                else:
-                    failed_checks += 1
-                    logging.warning(f"⚠️ Initial check failed: {check_name} - {status}: {error_msg}")
-                
-                # Очищуємо або встановлюємо повідомлення про помилку
-                if status != "error":
-                    check['last_error_message'] = None
-                else:
-                    check['last_error_message'] = error_msg
-                
-            except Exception as e:
-                failed_checks += 1
-                logging.error(f"❌ Error during initial check for {check_name}: {e}")
-                check['last_error_message'] = str(e)
+    except Exception as e:
+        app.logger.error(f"Error during app sleep toggle: {e}", exc_info=True)
+        return jsonify({
+            "error": f"Помилка управління режимом сну: {str(e)}",
+            "success": False
+        }), 500
+
+@app.route('/api/app-status', methods=['GET'])
+def api_app_status():
+    """API ендпоінт для отримання статусу застосунку (сон/активний)."""
+    try:
+        is_sleeping = scheduler_tasks.is_app_sleeping()
+        active_jobs = scheduler_tasks.scheduler.get_jobs() if scheduler_tasks.scheduler.running else []
         
-        # Зберігаємо оновлені дані всіх перевірок
-        data_manager.save_checks(all_checks)
+        # ВИПРАВЛЕНО: Підраховуємо активні перевірки з файлу даних
+        all_checks = data_manager.load_checks()
+        active_checks_count = len([check for check in all_checks if check.get('status') == 'active'])
         
-        # Звіт про результати
-        total_checks = len(active_checks)
-        logging.info(f"Initial checks completed: {successful_checks}/{total_checks} successful, {failed_checks} failed")
-        print(f"📊 Початкові перевірки: {successful_checks}/{total_checks} успішних, {failed_checks} помилок")
+        return jsonify({
+            "is_sleeping": is_sleeping,
+            "scheduler_running": scheduler_tasks.scheduler.running if hasattr(scheduler_tasks, 'scheduler') else False,
+            "active_jobs_count": len(active_jobs),
+            "active_checks": active_checks_count,  # ДОДАНО: правильний підрахунок
+            "total_checks": len(all_checks),      # ДОДАНО: загальна кількість
+            "status": "sleeping" if is_sleeping else "active"
+        }), 200
         
     except Exception as e:
-        logging.error(f"Error during initial checks execution: {e}")
-        print(f"❌ Помилка виконання початкових перевірок: {e}")
+        app.logger.error(f"Error getting app status: {e}", exc_info=True)
+        return jsonify({"error": "Failed to get app status"}), 500
 
 # --- Запуск програми ---
 if __name__ == '__main__':
@@ -893,82 +933,3 @@ def static_test():
     </body>
     </html>
     """
-
-@app.route('/api/app-sleep-toggle', methods=['POST'])
-def api_app_sleep_toggle():
-    """API ендпоінт для переведення застосунку в режим сну та виходу з нього."""
-    try:
-        # Отримуємо поточний стан системи
-        is_sleeping = scheduler_tasks.is_app_sleeping()
-        
-        if is_sleeping:
-            # Виводимо з режиму сну - відновлюємо всі активні перевірки
-            logging.info("Waking up application - resuming all active checks")
-            
-            # Відновлюємо планувальник
-            success = scheduler_tasks.wake_up_app()
-            
-            if success:
-                return jsonify({
-                    "action": "wake_up",
-                    "old_state": "sleeping",
-                    "new_state": "active",
-                    "message": "Застосунок виведено з режиму сну. Всі активні перевірки відновлено.",
-                    "success": True
-                }), 200
-            else:
-                return jsonify({
-                    "error": "Помилка виведення з режиму сну",
-                    "success": False
-                }), 500
-        else:
-            # Переводимо в режим сну - зупиняємо всі перевірки
-            logging.info("Putting application to sleep - pausing all active checks")
-            
-            # Зупиняємо планувальник
-            success = scheduler_tasks.put_app_to_sleep()
-            
-            if success:
-                return jsonify({
-                    "action": "sleep",
-                    "old_state": "active", 
-                    "new_state": "sleeping",
-                    "message": "Застосунок переведено в режим сну. Всі перевірки призупинено.",
-                    "success": True
-                }), 200
-            else:
-                return jsonify({
-                    "error": "Помилка переведення в режим сну",
-                    "success": False
-                }), 500
-                
-    except Exception as e:
-        app.logger.error(f"Error during app sleep toggle: {e}", exc_info=True)
-        return jsonify({
-            "error": f"Помилка управління режимом сну: {str(e)}",
-            "success": False
-        }), 500
-
-@app.route('/api/app-status', methods=['GET'])
-def api_app_status():
-    """API ендпоінт для отримання статусу застосунку (сон/активний)."""
-    try:
-        is_sleeping = scheduler_tasks.is_app_sleeping()
-        active_jobs = scheduler_tasks.scheduler.get_jobs() if scheduler_tasks.scheduler.running else []
-        
-        # ВИПРАВЛЕНО: Підраховуємо активні перевірки з файлу даних
-        all_checks = data_manager.load_checks()
-        active_checks_count = len([check for check in all_checks if check.get('status') == 'active'])
-        
-        return jsonify({
-            "is_sleeping": is_sleeping,
-            "scheduler_running": scheduler_tasks.scheduler.running if hasattr(scheduler_tasks, 'scheduler') else False,
-            "active_jobs_count": len(active_jobs),
-            "active_checks": active_checks_count,  # ДОДАНО: правильний підрахунок
-            "total_checks": len(all_checks),      # ДОДАНО: загальна кількість
-            "status": "sleeping" if is_sleeping else "active"
-        }), 200
-        
-    except Exception as e:
-        app.logger.error(f"Error getting app status: {e}", exc_info=True)
-        return jsonify({"error": "Failed to get app status"}), 500
